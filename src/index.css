@@ -1,0 +1,122 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap');
+@import 'tailwindcss';
+
+@theme inline {
+  --color-background: #070d1a;
+  --color-surface: #0c1628;
+  --color-card: #101e35;
+  --color-card-border: #1a2f50;
+  --color-primary: #22d3ee;
+  --color-primary-dim: #0e7490;
+  --color-success: #10b981;
+  --color-warning: #f59e0b;
+  --color-danger: #ef4444;
+  --color-purple: #a78bfa;
+  --color-text: #e2e8f0;
+  --color-text-muted: #64748b;
+  --color-text-dim: #94a3b8;
+  --font-display: 'Outfit', sans-serif;
+  --font-body: 'Inter', sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  font-family: var(--font-body);
+  background: var(--color-background);
+  color: var(--color-text);
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #1e3a5f; border-radius: 2px; }
+::-webkit-scrollbar-thumb:hover { background: #22d3ee40; }
+
+/* Pulse animation for live indicators */
+@keyframes pulse-ring {
+  0% { transform: scale(0.8); opacity: 1; }
+  100% { transform: scale(2); opacity: 0; }
+}
+@keyframes scan-line {
+  0% { transform: translateY(-100%); opacity: 0; }
+  20% { opacity: 0.6; }
+  80% { opacity: 0.6; }
+  100% { transform: translateY(100vh); opacity: 0; }
+}
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+@keyframes flow-progress {
+  0% { background-position: 0% 50%; }
+  100% { background-position: 200% 50%; }
+}
+
+.live-dot::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: currentColor;
+  animation: pulse-ring 1.5s ease-out infinite;
+}
+
+.font-display { font-family: var(--font-display); }
+.font-mono { font-family: var(--font-mono); }
+
+.status-badge {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 2px 8px;
+  border-radius: 3px;
+}
+
+.pipeline-track {
+  background: linear-gradient(90deg, #22d3ee, #10b981, #a78bfa, #f59e0b, #22d3ee);
+  background-size: 300% 100%;
+  animation: flow-progress 3s linear infinite;
+}
+
+.glass-card {
+  background: rgba(16, 30, 53, 0.8);
+  border: 1px solid rgba(34, 211, 238, 0.08);
+  backdrop-filter: blur(8px);
+}
+
+.row-selected {
+  background: rgba(34, 211, 238, 0.06) !important;
+  border-left: 2px solid #22d3ee !important;
+}
+
+/* ---------- tracker additions ---------- */
+:focus-visible { outline: 2px solid #22d3ee; outline-offset: 2px; }
+select option { background: #101e35; color: #e2e8f0; }
+input[type="datetime-local"]::-webkit-calendar-picker-indicator { filter: invert(0.8); }
+.print-only { display: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+}
+
+/* Reports print on white paper */
+@media print {
+  html, body, #root, #root > div { background: #fff !important; color: #111 !important; }
+  .no-print { display: none !important; }
+  .print-only { display: block; }
+  .glass-card { background: #fff !important; border: 1px solid #ccc !important; backdrop-filter: none !important; }
+  .report-print * { color: #111 !important; }
+  .report-print table, .report-print tr, .report-print th, .report-print td { border-color: #ccc !important; }
+}
