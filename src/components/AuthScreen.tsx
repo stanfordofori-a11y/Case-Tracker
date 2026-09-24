@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { signIn, staffFn } from "../lib/api";
-import { Button, Field, Note, inputCls } from "./ui";
+import { Button, Field, Logo, Note, inputCls } from "./ui";
 
 export type AuthMode = "login" | "setup" | "config";
 
@@ -53,41 +53,40 @@ export default function AuthScreen({ mode, message, messageTone = "err", onSigne
   const onKey = (e: React.KeyboardEvent) => { if (e.key === "Enter") submit(); };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-6" style={{ background: "radial-gradient(ellipse at top, #0c1f3a 0%, #070d1a 60%)" }}>
+    <div className="min-h-screen flex items-center justify-center p-6" style={{ background: "var(--canvas)" }}>
       <div className="w-full max-w-sm">
         <div className="flex items-center gap-3 mb-6">
-          <div className="w-10 h-10 rounded flex items-center justify-center font-display font-bold text-sm"
-            style={{ background: "linear-gradient(135deg, #22d3ee, #0e7490)", color: "#070d1a" }}>PA</div>
+          <Logo size={40} />
           <div>
-            <div className="font-display font-bold text-lg text-[#e2e8f0] leading-tight">Post-Analytical Tracker</div>
-            <div className="font-mono text-xs text-[#22d3ee]">Outstanding specimens, shared across benches</div>
+            <div className=" font-bold text-lg text-ink leading-tight">Post-Analytical Tracker</div>
+            <div className="num text-xs text-accent">Outstanding specimens, shared across benches</div>
           </div>
         </div>
 
-        <div className="glass-card rounded-xl p-6">
+        <div className="card p-7">
           {mode === "config" && (
             <>
-              <h1 className="font-display font-bold text-lg text-[#e2e8f0] mb-3">Not connected</h1>
+              <h1 className=" font-bold text-lg text-ink mb-3">Not connected</h1>
               <Note tone="err">The Supabase address isn't set. Add VITE_SUPABASE_URL and VITE_SUPABASE_KEY in Render's environment settings, or set them in src/lib/api.ts, then redeploy.</Note>
             </>
           )}
 
           {mode === "login" && (
             <>
-              <h1 className="font-display font-bold text-lg text-[#e2e8f0] mb-4">Sign in</h1>
+              <h1 className=" font-bold text-lg text-ink mb-4">Sign in</h1>
               {message && <Note tone={messageTone}>{message}</Note>}
               {err && <Note tone="err">{err}</Note>}
               <Field label="Email"><input className={inputCls} type="email" autoComplete="username" autoFocus value={f.email} onChange={set("email")} onKeyDown={onKey} /></Field>
               <Field label="Password"><input className={inputCls} type="password" autoComplete="current-password" value={f.password} onChange={set("password")} onKeyDown={onKey} /></Field>
               <Button tone="primary" className="w-full py-2.5 text-sm mt-1" disabled={busy} onClick={login}>{busy ? "Signing in…" : "Sign in"}</Button>
-              <p className="text-[0.7rem] text-[#7c8ba1] mt-4">Forgot your password? Ask an admin to reset it.</p>
+              <p className="text-xs text-ink-3 mt-4">Forgot your password? Ask an admin to reset it.</p>
             </>
           )}
 
           {mode === "setup" && (
             <>
-              <h1 className="font-display font-bold text-lg text-[#e2e8f0] mb-2">Create the first admin</h1>
-              <p className="text-xs text-[#94a3b8] mb-4 leading-relaxed">Nobody has been set up yet, so this form appears once. You'll need the SETUP_CODE saved in Supabase under Edge Functions → Secrets.</p>
+              <h1 className=" font-bold text-lg text-ink mb-2">Create the first admin</h1>
+              <p className="text-xs text-ink-2 mb-4 leading-relaxed">Nobody has been set up yet, so this form appears once. You'll need the SETUP_CODE saved in Supabase under Edge Functions → Secrets.</p>
               {err && <Note tone="err">{err}</Note>}
               <Field label="Your name"><input className={inputCls} autoComplete="name" autoFocus value={f.name} onChange={set("name")} /></Field>
               <Field label="Email"><input className={inputCls} type="email" autoComplete="username" value={f.email} onChange={set("email")} /></Field>

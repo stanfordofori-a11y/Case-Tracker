@@ -56,12 +56,12 @@ export default function PasteFlow({ open, onClose, slices, dicts, knownUnmatched
       {err && <Note tone="err">{err}</Note>}
       {!review ? (
         <>
-          <p className="text-xs text-[#94a3b8] mb-3 leading-relaxed">
+          <p className="text-xs text-ink-2 mb-3 leading-relaxed">
             Copy the whole "Outstanding Lab Specimens" report from MT and paste it here. You'll see what will change before anything is saved.
           </p>
           <textarea value={text} onChange={(e) => setText(e.target.value)} autoFocus spellCheck={false}
             placeholder="(R#123456) CLIENT NAME&#10;  Pending: WBC, RBC, S-UREA …&#10;  @ REPORT Collection Date 24/09/2026 14:30"
-            className="w-full h-72 rounded p-3 font-mono text-xs outline-none resize-y bg-[#070d1a] border border-[#1a2f50] text-[#e2e8f0] focus:border-[#22d3ee80]" />
+            className="w-full h-72 rounded p-3 num text-xs outline-none resize-y bg-surface border border-line text-ink focus:border-accent" />
           <div className="flex gap-2 mt-3 justify-end">
             <Button onClick={close}>Cancel</Button>
             <Button tone="primary" disabled={busy || !text.trim()} onClick={doReview}>{busy ? "Checking…" : "Review changes"}</Button>
@@ -71,15 +71,15 @@ export default function PasteFlow({ open, onClose, slices, dicts, knownUnmatched
         <>
           <dl className="text-sm mb-4">
             {([
-              ["Requisitions found", <>{reqCount} <span className="text-xs text-[#7c8ba1]">({review.parsed.slices.length} department entries)</span></>],
+              ["Requisitions found", <>{reqCount} <span className="text-xs text-ink-3">({review.parsed.slices.length} department entries)</span></>],
               ["New to the tracker", p!.newSlices],
               ["Still outstanding", p!.stillOpen],
               ...(p!.reopened ? [["Back on the list after being completed", p!.reopened]] : []),
               ["Tests finished inside cases still open", p!.partialTests],
               ["Will be marked completed (gone from the list)", <span style={{ color: C.danger }}>{p!.completedSlices}</span>],
             ] as [string, React.ReactNode][]).map(([k, v]) => (
-              <div key={k} className="flex justify-between gap-4 py-2 border-b" style={{ borderColor: C.border }}>
-                <dt className="text-[#94a3b8]">{k}</dt><dd className="font-mono font-semibold text-[#e2e8f0]">{v}</dd>
+              <div key={k} className="flex justify-between gap-4 py-2 border-b" style={{ borderColor: C.line }}>
+                <dt className="text-ink-2">{k}</dt><dd className="num font-semibold text-ink">{v}</dd>
               </div>
             ))}
           </dl>
@@ -90,9 +90,9 @@ export default function PasteFlow({ open, onClose, slices, dicts, knownUnmatched
               one department, use <b>Add / update only</b> so they aren't wrongly marked completed.</Note>
           )}
           {p!.completedList.length > 0 && (
-            <details className="mb-3 text-xs text-[#94a3b8]">
-              <summary className="cursor-pointer text-[#cbd5e1]">Show entries that will be marked completed</summary>
-              <div className="mt-2 font-mono leading-relaxed">{p!.completedList.slice(0, 80).join(", ")}{p!.completedList.length > 80 ? ` … and ${p!.completedList.length - 80} more` : ""}</div>
+            <details className="mb-3 text-xs text-ink-2">
+              <summary className="cursor-pointer text-ink">Show entries that will be marked completed</summary>
+              <div className="mt-2 num leading-relaxed">{p!.completedList.slice(0, 80).join(", ")}{p!.completedList.length > 80 ? ` … and ${p!.completedList.length - 80} more` : ""}</div>
             </details>
           )}
           {review.parsed.skipped.length > 0 && (
@@ -105,18 +105,18 @@ export default function PasteFlow({ open, onClose, slices, dicts, knownUnmatched
             </Note>
           )}
           {newNames.length > 0 && (
-            <p className="text-xs text-[#7c8ba1] mb-3">{newNames.length} test name{newNames.length === 1 ? " is" : "s are"} not in the department dictionary yet. They'll appear under Settings → Unrecognised test names.</p>
+            <p className="text-xs text-ink-3 mb-3">{newNames.length} test name{newNames.length === 1 ? " is" : "s are"} not in the department dictionary yet. They'll appear under Settings → Unrecognised test names.</p>
           )}
 
           {review.parsed.slices.length ? (
             <div className="grid sm:grid-cols-[1fr_1fr_auto] gap-3 mt-4 items-start">
               <div>
                 <Button tone="primary" className="w-full" disabled={busy} onClick={() => commit("full")}>{busy ? "Saving…" : "Apply full list"}</Button>
-                <p className="text-[0.68rem] text-[#7c8ba1] mt-1.5">This is the complete outstanding list. Anything missing is marked completed.</p>
+                <p className="text-xs text-ink-3 mt-1.5">This is the complete outstanding list. Anything missing is marked completed.</p>
               </div>
               <div>
                 <Button className="w-full" disabled={busy} onClick={() => commit("partial")}>Add / update only</Button>
-                <p className="text-[0.68rem] text-[#7c8ba1] mt-1.5">Partial paste (one page or department). Nothing is marked completed.</p>
+                <p className="text-xs text-ink-3 mt-1.5">Partial paste (one page or department). Nothing is marked completed.</p>
               </div>
               <Button tone="quiet" onClick={() => setReview(null)}>Back</Button>
             </div>

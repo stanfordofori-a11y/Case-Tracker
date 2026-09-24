@@ -34,24 +34,24 @@ function Unrecognised({ snap, dicts, run }: { snap: api.Snapshot; dicts: Dicts; 
     .filter(([k, u]) => matchDeptKeyword(u.name, dicts).department === "Unclassified" && !dicts.ignored.includes(k))
     .sort((a, b) => b[1].count - a[1].count);
   return (
-    <Panel title={<>Unrecognised test names {list.length > 0 && <span className="font-mono text-xs text-[#f59e0b] ml-1">{list.length}</span>}</>}>
-      <p className="text-xs text-[#94a3b8] mb-3 leading-relaxed">
+    <Panel title={<>Unrecognised test names {list.length > 0 && <span className="num text-xs text-alist ml-1">{list.length}</span>}</>}>
+      <p className="text-xs text-ink-2 mb-3 leading-relaxed">
         Test names from pastes that match nothing in the department dictionary. Each is currently counted under the department of the test printed just before it.
         Add real tests to the dictionary; ignore qualifiers such as "Ultra sensi".
       </p>
-      {!list.length ? <p className="text-xs text-[#7c8ba1]">Nothing to review. Every test name seen so far is in the dictionary or ignored.</p> : (
+      {!list.length ? <p className="text-xs text-ink-3">Nothing to review. Every test name seen so far is in the dictionary or ignored.</p> : (
         <div className="overflow-x-auto">
-          <table className="w-full text-xs">
-            <thead><tr className="text-left font-mono text-[#7c8ba1]">
-              {["Name as printed", "Seen", "Counted under", "Add to", ""].map((h) => <th key={h} className="py-2 pr-3 font-medium border-b" style={{ borderColor: C.border }}>{h}</th>)}
+          <table className="w-full text-sm">
+            <thead><tr className="text-left num text-ink-3">
+              {["Name as printed", "Seen", "Counted under", "Add to", ""].map((h) => <th key={h} className="py-2 pr-3 font-medium border-b" style={{ borderColor: C.line }}>{h}</th>)}
             </tr></thead>
             <tbody>
               {list.map(([k, u]) => {
                 const dept = choice[k] || (DEPARTMENTS.includes(u.attachedTo as any) ? u.attachedTo! : "Hematology");
                 return (
-                  <tr key={k} className="border-b text-[#cbd5e1]" style={{ borderColor: C.border }}>
-                    <td className="py-2 pr-3 font-mono">{u.name}</td>
-                    <td className="py-2 pr-3 font-mono">{u.count}</td>
+                  <tr key={k} className="border-b text-ink" style={{ borderColor: C.line }}>
+                    <td className="py-2 pr-3 num">{u.name}</td>
+                    <td className="py-2 pr-3 num">{u.count}</td>
                     <td className="py-2 pr-3">{u.attachedTo || "Unclassified"}</td>
                     <td className="py-2 pr-3">
                       <select className={`${inputBase} w-auto`} value={dept} onChange={(e) => setChoice({ ...choice, [k]: e.target.value })}>
@@ -93,8 +93,8 @@ function AlistEditor({ rows, run }: { rows: AlistKeyword[]; run: Run }) {
       <Button onClick={() => { if (confirm("Reset the A-List to the built-in defaults for everyone? Clients you added will be removed (the old list is kept in the activity log).")) run(() => api.replaceAlist(DEFAULT_ALIST), "A-List reset to defaults.").then(d.saved); }}>Reset to defaults</Button>
       <Button tone="primary" disabled={!d.dirty} onClick={() => run(() => api.replaceAlist(expandCommaKeywords(d.draft.filter((r) => r.keyword.trim()))), "A-List saved.").then(d.saved)}>Save A-List</Button>
     </div>}>
-      <p className="text-xs text-[#94a3b8] mb-3">A case is A-List if its client text contains the keyword (any case). Use a short, unique part of the account name, like "LANCET".</p>
-      <div className="grid grid-cols-[1fr_2fr_auto] gap-2 text-xs font-mono text-[#7c8ba1] mb-1"><span>Keyword</span><span>Display name</span><span /></div>
+      <p className="text-xs text-ink-2 mb-3">A case is A-List if its client text contains the keyword (any case). Use a short, unique part of the account name, like "LANCET".</p>
+      <div className="grid grid-cols-[1fr_2fr_auto] gap-2 text-xs num text-ink-3 mb-1"><span>Keyword</span><span>Display name</span><span /></div>
       {d.draft.map((r, i) => (
         <div key={i} className="grid grid-cols-[1fr_2fr_auto] gap-2 mb-1.5">
           <input className={inputCls} value={r.keyword} onChange={(e) => set(i, "keyword", e.target.value)} aria-label="Keyword" />
@@ -118,7 +118,7 @@ function DeptEditor({ rows, run }: { rows: DeptKeyword[]; run: Run }) {
       <Button onClick={() => { if (confirm("Reset the department dictionary to the built-in defaults for everyone? Keywords you added will be removed (the old list is kept in the activity log).")) run(() => api.replaceDept(DEFAULT_DEPT), "Department dictionary reset.").then(d.saved); }}>Reset to defaults</Button>
       <Button tone="primary" disabled={!d.dirty} onClick={() => run(() => api.replaceDept(expandCommaKeywords(d.draft.filter((r) => r.keyword.trim()))), "Department keywords saved. Cases re-split on every screen.").then(d.saved)}>Save keywords</Button>
     </div>}>
-      <p className="text-xs text-[#94a3b8] mb-3">The longest keyword found in a test name wins. Saving re-splits cases on every screen; completion history is never changed.</p>
+      <p className="text-xs text-ink-2 mb-3">The longest keyword found in a test name wins. Saving re-splits cases on every screen; completion history is never changed.</p>
       <input className={`${inputCls} mb-3 max-w-xs`} placeholder="Filter keywords" value={filter} onChange={(e) => setFilter(e.target.value)} aria-label="Filter keywords" />
       <div className="grid md:grid-cols-2 gap-x-6">
         {d.draft.map((r, i) => (!q || norm(r.keyword).includes(q) || norm(r.department).includes(q)) && (
@@ -209,13 +209,13 @@ function DataPanel({ snap, slices, isAdmin, run, toast, refresh }: {
 
   return (
     <Panel title="Data and backup">
-      <p className="text-xs text-[#94a3b8] mb-3">
+      <p className="text-xs text-ink-2 mb-3">
         {snap.reqs.length} requisitions ({slices.length} department entries, {done} completed) stored in Supabase. Last synced {snap.loadedAt.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}.
       </p>
       <div className="flex gap-2 flex-wrap mb-4">
         <Button onClick={backup}>Download full backup</Button>
         {isAdmin && (
-          <label className="inline-flex items-center rounded px-3 py-1.5 text-xs font-display border border-[#1a2f50] text-[#94a3b8] hover:border-[#22d3ee80] hover:text-[#e2e8f0] cursor-pointer">
+          <label className="inline-flex items-center rounded px-3 py-1.5 text-xs  border border-line text-ink-2 hover:border-line-strong hover:text-ink cursor-pointer">
             Import from backup file
             <input type="file" accept=".json,application/json" className="sr-only"
               onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) importFile(f); }} />
@@ -224,14 +224,14 @@ function DataPanel({ snap, slices, isAdmin, run, toast, refresh }: {
       </div>
       {isAdmin && (
         <>
-          <p className="text-[0.7rem] text-[#7c8ba1] mb-4">Import accepts backups from the old browser versions (rev 11 to 13) and this one. Requisitions already in the database are skipped.</p>
+          <p className="text-xs text-ink-3 mb-4">Import accepts backups from the old browser versions (rev 11 to 13) and this one. Requisitions already in the database are skipped.</p>
           <div className="flex items-center gap-2 flex-wrap mb-4">
-            <span className="text-xs text-[#94a3b8]">Archive requisitions completed more than</span>
+            <span className="text-xs text-ink-2">Archive requisitions completed more than</span>
             <input type="number" min={1} className={`${inputBase} w-20`} value={days} onChange={(e) => setDays(Math.max(1, +e.target.value || 30))} aria-label="Days" />
-            <span className="text-xs text-[#94a3b8]">days ago</span>
+            <span className="text-xs text-ink-2">days ago</span>
             <Button onClick={archive}>Download and remove</Button>
           </div>
-          <div className="pt-4 border-t" style={{ borderColor: C.border }}>
+          <div className="pt-4 border-t" style={{ borderColor: C.line }}>
             <Button tone="danger" onClick={clearAll}>Clear all tracked cases</Button>
           </div>
         </>

@@ -70,27 +70,27 @@ export default function StaffView({ me }: { me: Me }) {
           </Field>
         </div>
         <Button tone="primary" disabled={busy} onClick={add}>{busy ? "Adding…" : "Add staff member"}</Button>
-        <p className="text-[0.7rem] text-[#7c8ba1] mt-3">Staff can paste lists, undo, run reports and edit the dictionaries. Admins can also manage staff, import, archive and clear.</p>
+        <p className="text-xs text-ink-3 mt-3">Staff can paste lists, undo, run reports and edit the dictionaries. Admins can also manage staff, import, archive and clear.</p>
       </Panel>
 
       {msg && <Note tone={msg.tone}>{msg.text}</Note>}
 
       <Panel title="Staff accounts" action={<Button tone="quiet" onClick={load}>Refresh</Button>}>
         {loadErr && <Note tone="err">Couldn't load staff: {loadErr}. Check that the {STAFF_FUNCTION} Edge Function is deployed.</Note>}
-        {!list && !loadErr && <p className="text-xs text-[#7c8ba1]">Loading staff…</p>}
+        {!list && !loadErr && <p className="text-xs text-ink-3">Loading staff…</p>}
         {list && (
           <div className="overflow-x-auto">
-            <table className="w-full text-xs">
-              <thead><tr className="text-left font-mono text-[#7c8ba1]">
-                {["Name", "Email", "Role", "Status", "Last sign-in", ""].map((h) => <th key={h} className="py-2 pr-3 font-medium border-b" style={{ borderColor: C.border }}>{h}</th>)}
+            <table className="w-full text-sm">
+              <thead><tr className="text-left num text-ink-3">
+                {["Name", "Email", "Role", "Status", "Last sign-in", ""].map((h) => <th key={h} className="py-2 pr-3 font-medium border-b" style={{ borderColor: C.line }}>{h}</th>)}
               </tr></thead>
               <tbody>
                 {list.map((s) => {
                   const self = s.email === me.email;
                   return (
-                    <tr key={s.email} className="border-b text-[#cbd5e1]" style={{ borderColor: C.border, opacity: s.active ? 1 : 0.55 }}>
-                      <td className="py-2 pr-3 font-display">{s.display_name}{self && <span className="text-[#7c8ba1]"> (you)</span>}</td>
-                      <td className="py-2 pr-3 font-mono">{s.email}</td>
+                    <tr key={s.email} className="border-b text-ink" style={{ borderColor: C.line, opacity: s.active ? 1 : 0.55 }}>
+                      <td className="py-2 pr-3 ">{s.display_name}{self && <span className="text-ink-3"> (you)</span>}</td>
+                      <td className="py-2 pr-3 num">{s.email}</td>
                       <td className="py-2 pr-3">
                         <select className={`${inputBase} w-auto`} value={s.role} disabled={self} aria-label={`Role for ${s.email}`}
                           onChange={(e) => {
@@ -101,8 +101,8 @@ export default function StaffView({ me }: { me: Me }) {
                           <option value="staff">Staff</option><option value="admin">Admin</option>
                         </select>
                       </td>
-                      <td className="py-2 pr-3">{s.active ? <Badge color={C.success}>Active</Badge> : <Badge color={C.muted}>Deactivated</Badge>}</td>
-                      <td className="py-2 pr-3 font-mono">{s.last_sign_in_at ? fmtIso(s.last_sign_in_at) : s.has_login ? "Never" : "No login"}</td>
+                      <td className="py-2 pr-3">{s.active ? <Badge color={C.success}>Active</Badge> : <Badge color={C.ink3}>Deactivated</Badge>}</td>
+                      <td className="py-2 pr-3 num">{s.last_sign_in_at ? fmtIso(s.last_sign_in_at) : s.has_login ? "Never" : "No login"}</td>
                       <td className="py-2 whitespace-nowrap text-right">
                         <Button tone="quiet" onClick={() => resetPassword(s.email)}>Reset password</Button>
                         {!self && (

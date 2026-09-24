@@ -7,7 +7,9 @@ import PasteFlow from "./components/PasteFlow";
 import ReportView from "./components/ReportView";
 import SettingsView from "./components/SettingsView";
 import StaffView from "./components/StaffView";
-import { Button, C } from "./components/ui";
+import { Button, C, Logo } from "./components/ui";
+import DisplayMenu from "./components/DisplayMenu";
+import { useDisplay } from "./lib/display";
 
 type Tab = "tracker" | "report" | "settings" | "staff";
 type Phase = "boot" | "auth" | "app";
@@ -15,7 +17,7 @@ type Phase = "boot" | "auth" | "app";
 function LiveClock() {
   const [t, setT] = useState(new Date());
   useEffect(() => { const i = setInterval(() => setT(new Date()), 1000); return () => clearInterval(i); }, []);
-  return <span className="font-mono text-sm text-[#22d3ee] tabular-nums">{t.toLocaleTimeString("en-GB", { hour12: false })}</span>;
+  return <span className="num text-sm text-ink-2">{t.toLocaleTimeString("en-GB", { hour12: false })}</span>;
 }
 
 export default function App() {
@@ -31,6 +33,7 @@ export default function App() {
   const [now, setNow] = useState(Date.now());
   const [toasts, setToasts] = useState<{ id: number; text: string; tone: "ok" | "err" }[]>([]);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [display, setDisplay] = useDisplay();
 
   const toast = useCallback((text: string, tone: "ok" | "err" = "ok") => {
     const id = Date.now() + Math.random();
@@ -132,7 +135,7 @@ export default function App() {
 
   /* ---------- render ---------- */
   if (phase === "boot") {
-    return <div className="min-h-screen flex items-center justify-center font-mono text-xs text-[#7c8ba1]">Connecting…</div>;
+    return <div className="min-h-screen flex items-center justify-center text-sm text-ink-3">Connecting…</div>;
   }
   if (phase === "auth" || !me || !snap) {
     return <AuthScreen mode={authMode} message={authMsg?.text} messageTone={authMsg?.tone}
@@ -146,72 +149,73 @@ export default function App() {
   const tabs: [Tab, string][] = [["tracker", "Tracker"], ["report", "Delay report"], ["settings", "Settings"], ...(isAdmin ? [["staff", "Staff"] as [Tab, string]] : [])];
 
   return (
-    <div className="min-h-screen" style={{ background: C.bg }}>
-      <nav className="border-b sticky top-0 z-50 no-print" style={{ background: "rgba(7,13,26,0.95)", borderColor: C.border, backdropFilter: "blur(12px)" }}>
-        <div className="px-6 py-2.5 flex items-center justify-between gap-4 flex-wrap">
+    <div className="min-h-screen bg-canvas">
+      <header className="border-b sticky top-0 z-40 no-print bg-surface" style={{ borderColor: C.line }}>
+        <div className="max-w-[1400px] mx-auto px-4 sm:px-6 py-2.5 flex items-center justify-between gap-4 flex-wrap">
           <div className="flex items-center gap-6 flex-wrap">
-            <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded flex items-center justify-center font-display font-bold text-sm"
-                style={{ background: "linear-gradient(135deg, #22d3ee, #0e7490)", color: C.bg }}>PA</div>
-              <div>
-                <div className="font-display font-bold text-base leading-none text-[#e2e8f0]">Post-Analytical Tracker</div>
-                <div className="font-mono text-xs text-[#22d3ee] mt-0.5">Outstanding specimens</div>
-              </div>
+            <div className="flex items-center gap-2.5">
+              <Logo />
+              <span className="font-semibold text-lg text-ink leading-tight">Post-Analytical Tracker</span>
             </div>
-            <div className="flex gap-1" role="tablist">
+            <nav className="flex gap-1" role="tablist" aria-label="Sections">
               {tabs.map(([id, label]) => (
                 <button key={id} role="tab" aria-selected={tab === id} onClick={() => setTab(id)}
-                  className="px-3 py-1.5 rounded text-sm font-display transition-colors cursor-pointer"
-                  style={{ color: tab === id ? C.text : C.muted, background: tab === id ? "#22d3ee14" : "transparent" }}>
+                  className="px-3 py-1.5 text-sm cursor-pointer border-b-2 -mb-[1px]"
+                  style={{ color: tab === id ? C.ink : C.ink2, borderColor: tab === id ? C.accent : "transparent", fontWeight: tab === id ? 600 : 400 }}>
                   {label}
                 </button>
               ))}
-            </div>
+            </nav>
           </div>
 
-          <div className="flex items-center gap-5">
-            <div className="flex items-center gap-2" title={live ? "Live: other benches' changes appear automatically" : "Live updates paused; data refreshes every few minutes"}>
-              <div className={`relative w-2 h-2 rounded-full ${live ? "live-dot" : ""}`} style={{ color: live ? C.success : C.warning, background: live ? C.success : C.warning }} />
-              <span className="font-mono text-xs" style={{ color: live ? C.success : C.warning }}>{live ? "Live" : "Offline"}</span>
-            </div>
+          <div className="flex items-center gap-3 sm:gap-4">
+            <span className="flex items-center gap-2 text-sm" style={{ color: live ? C.success : C.warning }}
+              title={live ? "Changes from other benches appear automatically" : "Live updates paused; data refreshes every few minutes"}>
+              <span className={`relative w-2 h-2 rounded-full ${live ? "live-dot" : ""}`} style={{ color: live ? C.success : C.warning, background: live ? C.success : C.warning }} />
+              {live ? "Live" : "Reconnecting"}
+            </span>
             <LiveClock />
-            <div className="relative pl-4 border-l" style={{ borderColor: C.border }}>
-              <button onClick={() => setMenuOpen((o) => !o)} aria-expanded={menuOpen} className="flex items-center gap-2 cursor-pointer">
-                <span className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-display font-bold" style={{ background: "#22d3ee20", color: C.primary }}>{initials}</span>
-                <span className="text-xs text-[#94a3b8] hidden sm:inline">{me.display_name || me.email}{isAdmin ? " (admin)" : ""}</span>
+            <DisplayMenu d={display} set={setDisplay} />
+            <div className="relative">
+              <button onClick={() => setMenuOpen((o) => !o)} aria-expanded={menuOpen} className="flex items-center gap-2 cursor-pointer rounded-md px-1.5 py-1 hover:bg-raised">
+                <span className="w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold" style={{ background: C.ink, color: C.surface }}>{initials}</span>
+                <span className="text-sm text-ink hidden lg:inline">{me.display_name || me.email}</span>
               </button>
               {menuOpen && (
-                <div className="absolute right-0 mt-2 w-48 rounded-lg border py-1 z-50" style={{ background: C.surface, borderColor: C.border }}>
-                  <div className="px-3 py-2 font-mono text-[0.65rem] text-[#7c8ba1] truncate">{me.email}</div>
-                  <button className="w-full text-left px-3 py-2 text-xs text-[#cbd5e1] hover:bg-white/5 cursor-pointer" onClick={changePassword}>Change password</button>
-                  <button className="w-full text-left px-3 py-2 text-xs text-[#cbd5e1] hover:bg-white/5 cursor-pointer" onClick={doSignOut}>Sign out</button>
+                <div className="card absolute right-0 mt-2 w-56 py-1 z-50">
+                  <div className="px-3 py-2 text-xs text-ink-3 truncate">{me.email}{isAdmin ? " (admin)" : ""}</div>
+                  <button className="w-full text-left px-3 py-2 text-sm text-ink hover:bg-raised cursor-pointer" onClick={changePassword}>Change password</button>
+                  <button className="w-full text-left px-3 py-2 text-sm text-ink hover:bg-raised cursor-pointer" onClick={doSignOut}>Sign out</button>
                 </div>
               )}
             </div>
           </div>
         </div>
-      </nav>
+      </header>
 
-      {loadErr && <div className="px-6 py-2 text-xs no-print" style={{ background: "#ef444418", color: "#fca5a5" }}>{loadErr}</div>}
+      {loadErr && <div className="px-6 py-2 text-sm no-print text-danger" style={{ background: "color-mix(in srgb, var(--danger) 10%, transparent)" }}>{loadErr}</div>}
       {lastPaste && !lastPaste.locked && tab === "tracker" && (
-        <div className="px-6 py-1.5 flex items-center gap-3 text-xs border-b no-print" style={{ background: "#0e749014", borderColor: C.border, color: C.dim }}>
-          <span>Last paste {fmtTime(lastPaste.at)} by {lastPaste.by_email}{lastPaste.mode === "partial" ? " (add/update only)" : ""}.</span>
-          <Button tone="quiet" className="px-1 py-0.5 underline" onClick={undo}>Undo it</Button>
+        <div className="border-b no-print" style={{ borderColor: C.line, background: C.raised }}>
+          <div className="max-w-[1400px] mx-auto px-4 sm:px-6 py-1.5 flex items-center gap-3 text-sm text-ink-2">
+            <span>Last list pasted at {fmtTime(lastPaste.at)} by {lastPaste.by_email}{lastPaste.mode === "partial" ? " (add/update only)" : ""}.</span>
+            <Button tone="quiet" className="px-1 py-0.5" onClick={undo}>Undo that paste</Button>
+          </div>
         </div>
       )}
 
-      {tab === "tracker" && <TrackerView slices={slices} now={now} lastPaste={lastPaste} onOpenPaste={() => setPasteOpen(true)} />}
-      {tab === "report" && <ReportView slices={slices} pasteTimes={snap.pastes.map((p) => p.at)} dicts={dicts} settings={snap.settings} onError={(m) => toast(m, "err")} />}
-      {tab === "settings" && <SettingsView snap={snap} dicts={dicts} slices={slices} isAdmin={isAdmin} refresh={refresh} toast={toast} />}
-      {tab === "staff" && isAdmin && <StaffView me={me} />}
+      <main>
+        {tab === "tracker" && <TrackerView slices={slices} now={now} lastPaste={lastPaste} onOpenPaste={() => setPasteOpen(true)} />}
+        {tab === "report" && <ReportView slices={slices} pasteTimes={snap.pastes.map((p) => p.at)} dicts={dicts} settings={snap.settings} onError={(m) => toast(m, "err")} />}
+        {tab === "settings" && <SettingsView snap={snap} dicts={dicts} slices={slices} isAdmin={isAdmin} refresh={refresh} toast={toast} />}
+        {tab === "staff" && isAdmin && <StaffView me={me} />}
+      </main>
 
       <PasteFlow open={pasteOpen} onClose={() => setPasteOpen(false)} slices={slices} dicts={dicts} knownUnmatched={snap.unmatched}
         refresh={refresh} onSaved={(m) => { toast(m); refresh(); }} />
 
       <div className="fixed bottom-4 right-4 z-[70] space-y-2 max-w-sm no-print" aria-live="polite">
         {toasts.map((t) => (
-          <div key={t.id} className="rounded-lg px-4 py-3 text-xs border shadow-lg"
-            style={{ background: C.surface, borderColor: t.tone === "err" ? "#ef444466" : "#10b98166", color: t.tone === "err" ? "#fca5a5" : "#a7f3d0" }}>
+          <div key={t.id} className="card px-4 py-3 text-sm text-ink" style={{ borderLeft: `4px solid ${t.tone === "err" ? C.danger : C.success}` }}>
             {t.text}
           </div>
         ))}

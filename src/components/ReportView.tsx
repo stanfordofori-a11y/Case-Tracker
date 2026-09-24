@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { saveSettings, type Settings } from "../lib/api";
 import { aggNumbers, buildReport, type Agg, type ReportData } from "../lib/report";
 import { REPORT_DEPT_ORDER, rangeText, toLocalInput, type Dicts, type Slice } from "../lib/tracker";
-import { Badge, Button, C, DEPT_COLORS, Field, Note, Panel, StatCard, csvCell, downloadFile, inputBase, inputCls, stamp } from "./ui";
+import { Badge, Button, C, Field, Note, Panel, Stat, Cap, csvCell, downloadFile, inputBase, inputCls, stamp } from "./ui";
 
 const startOfToday = () => { const n = new Date(); return new Date(n.getFullYear(), n.getMonth(), n.getDate()); };
 
@@ -71,7 +71,7 @@ export default function ReportView({ slices, pasteTimes, dicts, settings, onErro
         </div>
         <div className="flex items-center gap-3 no-print">
           <Button tone="primary" onClick={() => generate()}>Generate report</Button>
-          <span className="text-[0.7rem] text-[#7c8ba1]">Grace periods are shared with everyone. A case counts if it was on a paste, or dropped off the list, within the window.</span>
+          <span className="text-xs text-ink-3">Grace periods are shared with everyone. A case counts if it was on a paste, or dropped off the list, within the window.</span>
         </div>
         {err && <div className="mt-3"><Note tone="err">{err}</Note></div>}
       </Panel>
@@ -86,23 +86,23 @@ function ReportBody({ r }: { r: ReportData }) {
   return (
     <>
       <div className="print-only mb-3 text-sm">Delay report {r.from.toLocaleString()} to {r.to.toLocaleString()}</div>
-      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3 mb-4">
-        <StatCard label="Cases in window" value={r.cases} color={C.primary} />
-        <StatCard label="On time" value={r.overall.onTime} color={C.success} />
-        <StatCard label="Delayed" value={o.delayed} sub={`${r.overall.late} done late, ${r.overall.ongoing} still open`} color={C.danger} />
-        <StatCard label="Unclear" value={r.overall.unclear} color={C.warning} />
-        <StatCard label="Delay rate" value={`${o.rate}%`} color={o.rate < 20 ? C.success : C.danger} />
-        <StatCard label="Avg delay" value={<span className="text-lg">{o.delayed ? rangeText(o.avgMin, o.avgMax) : "–"}</span>} color={C.text} />
-        <StatCard label="Paste interval" value={<span className="text-lg">{r.avgGap !== null ? rangeText(r.avgGap, r.avgGap) : "–"}</span>} sub={`${r.pasteCount} pastes`} color={C.dim} />
+      <div className="card p-5 grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-6 mb-4">
+        <Stat label="Cases in window" value={r.cases} color={C.accent} />
+        <Stat label="On time" value={r.overall.onTime} color={C.success} />
+        <Stat label="Delayed" value={o.delayed} sub={`${r.overall.late} done late, ${r.overall.ongoing} still open`} color={C.danger} />
+        <Stat label="Unclear" value={r.overall.unclear} color={C.warning} />
+        <Stat label="Delay rate" value={`${o.rate}%`} color={o.rate < 20 ? C.success : C.danger} />
+        <Stat label="Avg delay" value={<span className="text-2xl">{o.delayed ? rangeText(o.avgMin, o.avgMax) : "–"}</span>} color={C.ink} />
+        <Stat label="Paste interval" value={<span className="text-2xl">{r.avgGap !== null ? rangeText(r.avgGap, r.avgGap) : "–"}</span>} sub={`${r.pasteCount} pastes`} color={C.ink2} />
       </div>
-      <p className="text-[0.7rem] text-[#7c8ba1] mb-5 leading-relaxed">
+      <p className="text-xs text-ink-3 mb-5 leading-relaxed">
         Delay rate = delayed ÷ (on time + delayed); unclear and not-yet-due cases are left out. Delays show as a range when the finish time is only known to within a paste.
         {(r.graceStd || r.graceAlist) ? ` Grace applied: ${r.graceStd} min standard, ${r.graceAlist} min A-List.` : " No grace period applied."}
       </p>
 
       <Panel title="Delay by department">
         <AggTable firstCol="Department" rows={REPORT_DEPT_ORDER.filter((d) => r.byDept[d]).map((d) => ({
-          key: d, label: <span className="flex items-center gap-2"><span className="w-2 h-2 rounded-full" style={{ background: DEPT_COLORS[d] }} />{d}</span>, agg: r.byDept[d]!,
+          key: d, label: <span className="flex items-center gap-2"><Cap dept={d} />{d}</span>, agg: r.byDept[d]!,
         }))} bar />
       </Panel>
       <Panel title="A-List vs standard clients">
@@ -111,7 +111,7 @@ function ReportBody({ r }: { r: ReportData }) {
         }))} />
       </Panel>
       <Panel title="Delay trend by test">
-        <p className="text-[0.7rem] text-[#7c8ba1] -mt-1 mb-3">Top 20 by number delayed. Each test is judged on its own finish time.</p>
+        <p className="text-xs text-ink-3 -mt-1 mb-3">Top 20 by number delayed. Each test is judged on its own finish time.</p>
         <AggTable firstCol="Test" extraCol="Department" rows={r.byTest.slice(0, 20).map((t) => ({ key: t.key, label: t.key, extra: t.department, agg: t }))} />
       </Panel>
     </>
@@ -122,14 +122,14 @@ function AggTable({ firstCol, extraCol, rows, bar = false }: {
   firstCol: string; extraCol?: string; bar?: boolean;
   rows: { key: string; label: React.ReactNode; extra?: string; agg: Agg }[];
 }) {
-  if (!rows.length) return <p className="text-xs text-[#7c8ba1]">No data in this window.</p>;
+  if (!rows.length) return <p className="text-xs text-ink-3">No data in this window.</p>;
   return (
     <div className="overflow-x-auto">
-      <table className="w-full text-xs">
+      <table className="w-full text-sm">
         <thead>
-          <tr className="text-left text-[#7c8ba1] font-mono">
+          <tr className="text-left text-ink-3 num">
             {[firstCol, ...(extraCol ? [extraCol] : []), "Total", "On time", "Delayed", "Unclear", "Not yet due", "Delay rate", "Avg delay", ...(bar ? [""] : [])].map((h) => (
-              <th key={h} className="py-2 pr-4 font-medium border-b" style={{ borderColor: C.border }}>{h}</th>
+              <th key={h} className="py-2 pr-4 font-medium border-b" style={{ borderColor: C.line }}>{h}</th>
             ))}
           </tr>
         </thead>
@@ -137,16 +137,16 @@ function AggTable({ firstCol, extraCol, rows, bar = false }: {
           {rows.map(({ key, label, extra, agg }) => {
             const n = aggNumbers(agg);
             return (
-              <tr key={key} className="border-b text-[#cbd5e1]" style={{ borderColor: C.border }}>
-                <td className="py-2 pr-4 font-display">{label}</td>
-                {extraCol && <td className="py-2 pr-4 text-[#94a3b8]">{extra}</td>}
-                <td className="py-2 pr-4 font-mono">{agg.total}</td>
-                <td className="py-2 pr-4 font-mono">{agg.onTime}</td>
-                <td className="py-2 pr-4 font-mono" style={{ color: n.delayed ? C.danger : undefined }}>{n.delayed}</td>
-                <td className="py-2 pr-4 font-mono">{agg.unclear}</td>
-                <td className="py-2 pr-4 font-mono">{agg.notDue}</td>
-                <td className="py-2 pr-4 font-mono">{n.rate}%</td>
-                <td className="py-2 pr-4 font-mono">{n.delayed ? rangeText(n.avgMin, n.avgMax) : "–"}</td>
+              <tr key={key} className="border-b text-ink" style={{ borderColor: C.line }}>
+                <td className="py-2 pr-4 ">{label}</td>
+                {extraCol && <td className="py-2 pr-4 text-ink-2">{extra}</td>}
+                <td className="py-2 pr-4 num">{agg.total}</td>
+                <td className="py-2 pr-4 num">{agg.onTime}</td>
+                <td className="py-2 pr-4 num" style={{ color: n.delayed ? C.danger : undefined }}>{n.delayed}</td>
+                <td className="py-2 pr-4 num">{agg.unclear}</td>
+                <td className="py-2 pr-4 num">{agg.notDue}</td>
+                <td className="py-2 pr-4 num">{n.rate}%</td>
+                <td className="py-2 pr-4 num">{n.delayed ? rangeText(n.avgMin, n.avgMax) : "–"}</td>
                 {bar && <td className="py-2 w-32"><div className="h-1.5 rounded-full" style={{ background: C.track }}>
                   <div className="h-full rounded-full" style={{ width: `${n.rate}%`, background: n.rate < 20 ? C.success : C.danger }} /></div></td>}
               </tr>
