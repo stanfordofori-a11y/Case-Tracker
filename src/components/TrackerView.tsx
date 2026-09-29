@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import * as api from "../lib/api";
 import {
   fmtIso, fmtTime, formatMinutes, norm, rangeText, tatMs, verdict,
   type Slice, type SliceDept, type TrackedTest,
@@ -240,6 +241,16 @@ function CaseDrawer({ c, siblings, now, onClose, onSelect }: {
     window.addEventListener("keydown", k);
     return () => window.removeEventListener("keydown", k);
   }, [c, onClose]);
+  const [journey, setJourney] = useState<{ samples: api.SampleRow[]; centres: api.Centre[] } | null>(null);
+  useEffect(() => {
+    setJourney(null);
+    if (!c) return;
+    let live = true;
+    Promise.all([api.samplesForRequisition(c.rNumber), api.loadCentres()])
+      .then(([samples, centres]) => { if (live) setJourney({ samples, centres }); })
+      .catch(() => { if (live) setJourney({ samples: [], centres: [] }); });
+    return () => { live = false; };
+  }, [c?.rNumber]); // eslint-disable-line react-hooks/exhaustive-deps
   if (!c) return null;
   const st = statusText(c, now);
   const tat = tatMs(c);
@@ -287,6 +298,30 @@ function CaseDrawer({ c, siblings, now, onClose, onSelect }: {
                 </Button>
               ))}
             </div>
+          </div>
+        )}
+
+        {journey && journey.samples.length > 0 && (
+          <div className="mb-5">
+            <h3 className="font-semibold text-ink mb-2">Sample journey</h3>
+            <ul className="space-y-2">
+              {journey.samples.map((s) => {
+                const centre = journey.centres.find((x) => x.id === s.centre_id)?.name;
+                const transit = s.collected_at && s.received_at ? (new Date(s.received_at).getTime() - new Date(s.collected_at).getTime()) / 60000 : null;
+                return (
+                  <li key={s.id} className="rounded-md p-3 text-sm" style={{ background: C.raised, border: `1px solid ${C.line}` }}>
+                    <div className="flex justify-between gap-3 mb-1">
+                      <span className="num font-semibold text-ink">{s.barcode}</span>
+                      {s.received_at ? <Badge color={C.success}>At lab</Badge> : <Badge color={C.warning}>In transit</Badge>}
+                    </div>
+                    {s.source === "courier"
+                      ? <p className="text-ink-2">Collected from {centre || "a centre"} by {(s.collected_by || "").split("@")[0]} at <span className="num">{fmtIso(s.collected_at)}</span></p>
+                      : <p className="text-ink-2">No courier record (scanned straight in at the lab)</p>}
+                    {s.received_at && <p className="text-ink-2">Received at pre-analytical <span className="num">{fmtIso(s.received_at)}</span>{transit !== null && ` after ${formatMinutes(transit)} in transit`}</p>}
+                  </li>
+                );
+              })}
+            </ul>
           </div>
         )}
 

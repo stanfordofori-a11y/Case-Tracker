@@ -65,12 +65,12 @@ export default function StaffView({ me }: { me: Me }) {
           </Field>
           <Field label="Role">
             <select className={inputCls} value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value as Role })}>
-              <option value="staff">Staff</option><option value="admin">Admin</option>
+              <option value="staff">Lab staff</option><option value="courier">Courier</option><option value="admin">Admin</option>
             </select>
           </Field>
         </div>
         <Button tone="primary" disabled={busy} onClick={add}>{busy ? "Adding…" : "Add staff member"}</Button>
-        <p className="text-xs text-ink-3 mt-3">Staff can paste lists, undo, run reports and edit the dictionaries. Admins can also manage staff, import, archive and clear.</p>
+        <p className="text-xs text-ink-3 mt-3">Couriers see only the sample-collection screen on their phone. Lab staff can paste lists, receive samples, undo, run reports and edit the dictionaries. Admins can also manage staff and centres, import, archive and clear.</p>
       </Panel>
 
       {msg && <Note tone={msg.tone}>{msg.text}</Note>}
@@ -95,10 +95,10 @@ export default function StaffView({ me }: { me: Me }) {
                         <select className={`${inputBase} w-auto`} value={s.role} disabled={self} aria-label={`Role for ${s.email}`}
                           onChange={(e) => {
                             const role = e.target.value as Role;
-                            if (confirm(`Make ${s.email} ${role === "admin" ? "an admin (can manage staff, import, archive and clear)" : "regular staff"}?`)) act({ action: "set_role", email: s.email, role }, `${s.email} is now ${role}.`);
+                            if (confirm(`Make ${s.email} ${role === "admin" ? "an admin (can manage staff, import, archive and clear)" : role === "courier" ? "a courier (sees only the sample-collection screen)" : "regular lab staff"}?`)) act({ action: "set_role", email: s.email, role }, `${s.email} is now ${role}.`);
                             else load();
                           }}>
-                          <option value="staff">Staff</option><option value="admin">Admin</option>
+                          <option value="staff">Lab staff</option><option value="courier">Courier</option><option value="admin">Admin</option>
                         </select>
                       </td>
                       <td className="py-2 pr-3">{s.active ? <Badge color={C.success}>Active</Badge> : <Badge color={C.ink3}>Deactivated</Badge>}</td>

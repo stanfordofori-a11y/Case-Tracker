@@ -7,11 +7,13 @@ import PasteFlow from "./components/PasteFlow";
 import ReportView from "./components/ReportView";
 import SettingsView from "./components/SettingsView";
 import StaffView from "./components/StaffView";
+import CourierView from "./components/CourierView";
+import ReceptionView from "./components/ReceptionView";
 import { Button, C, Logo } from "./components/ui";
 import DisplayMenu from "./components/DisplayMenu";
 import { useDisplay } from "./lib/display";
 
-type Tab = "tracker" | "report" | "settings" | "staff";
+type Tab = "tracker" | "samples" | "report" | "settings" | "staff";
 type Phase = "boot" | "auth" | "app";
 
 function LiveClock() {
@@ -68,14 +70,14 @@ export default function App() {
   const scheduleRefresh = useCallback((ms = 1200) => { clearTimeout(timer.current); timer.current = window.setTimeout(refresh, ms); }, [refresh]);
 
   useEffect(() => {
-    if (phase !== "app") return;
+    if (phase !== "app" || me?.role === "courier") return;
     const unsub = api.subscribeLive(() => scheduleRefresh(), setLive);
     const tick = setInterval(() => setNow(Date.now()), 60000);
     const safety = setInterval(() => { if (!document.hidden) refresh(); }, 5 * 60000);
     const vis = () => { if (!document.hidden) { setNow(Date.now()); scheduleRefresh(300); } };
     document.addEventListener("visibilitychange", vis);
     return () => { unsub(); clearInterval(tick); clearInterval(safety); document.removeEventListener("visibilitychange", vis); };
-  }, [phase, refresh, scheduleRefresh]);
+  }, [phase, me, refresh, scheduleRefresh]);
 
   /* ---------- auth ---------- */
   const enterApp = useCallback(async () => {
@@ -89,7 +91,7 @@ export default function App() {
       return;
     }
     setMe(r);
-    await refresh();
+    if (r.role !== "courier") await refresh(); // couriers only see their collection screen
     setPhase("app");
   }, [refresh]);
 
@@ -137,6 +139,39 @@ export default function App() {
   if (phase === "boot") {
     return <div className="min-h-screen flex items-center justify-center text-sm text-ink-3">Connecting…</div>;
   }
+  if (phase === "app" && me?.role === "courier") {
+    return (
+      <div className="min-h-screen bg-canvas">
+        <header className="border-b bg-surface sticky top-0 z-40" style={{ borderColor: C.line }}>
+          <div className="max-w-lg mx-auto px-4 py-2.5 flex items-center justify-between gap-3">
+            <span className="flex items-center gap-2.5"><Logo size={30} /><span className="font-semibold text-ink">Sample collection</span></span>
+            <span className="flex items-center gap-2">
+              <DisplayMenu d={display} set={setDisplay} />
+              <div className="relative">
+                <button onClick={() => setMenuOpen((o) => !o)} aria-expanded={menuOpen} aria-label="Account"
+                  className="w-9 h-9 rounded-full flex items-center justify-center text-sm font-semibold cursor-pointer" style={{ background: C.ink, color: C.surface }}>
+                  {(me.display_name || me.email).slice(0, 1).toUpperCase()}
+                </button>
+                {menuOpen && (
+                  <div className="card absolute right-0 mt-2 w-56 py-1 z-50">
+                    <div className="px-3 py-2 text-xs text-ink-3 truncate">{me.email} (courier)</div>
+                    <button className="w-full text-left px-3 py-2.5 text-sm text-ink hover:bg-raised cursor-pointer" onClick={changePassword}>Change password</button>
+                    <button className="w-full text-left px-3 py-2.5 text-sm text-ink hover:bg-raised cursor-pointer" onClick={doSignOut}>Sign out</button>
+                  </div>
+                )}
+              </div>
+            </span>
+          </div>
+        </header>
+        <CourierView me={me} toast={toast} />
+        <div className="fixed bottom-4 left-4 right-4 z-[70] space-y-2 max-w-lg mx-auto no-print" aria-live="polite">
+          {toasts.map((t) => (
+            <div key={t.id} className="card px-4 py-3 text-sm text-ink" style={{ borderLeft: `4px solid ${t.tone === "err" ? C.danger : C.success}` }}>{t.text}</div>
+          ))}
+        </div>
+      </div>
+    );
+  }
   if (phase === "auth" || !me || !snap) {
     return <AuthScreen mode={authMode} message={authMsg?.text} messageTone={authMsg?.tone}
       onSignedIn={() => { setAuthMsg(null); enterApp(); }}
@@ -146,7 +181,7 @@ export default function App() {
   const isAdmin = me.role === "admin";
   const lastPaste = snap.pastes[0] || null;
   const initials = (me.display_name || me.email).split(/[\s@.]+/).filter(Boolean).slice(0, 2).map((w) => w[0]!.toUpperCase()).join("");
-  const tabs: [Tab, string][] = [["tracker", "Tracker"], ["report", "Delay report"], ["settings", "Settings"], ...(isAdmin ? [["staff", "Staff"] as [Tab, string]] : [])];
+  const tabs: [Tab, string][] = [["tracker", "Tracker"], ["samples", "Samples"], ["report", "Delay report"], ["settings", "Settings"], ...(isAdmin ? [["staff", "Staff"] as [Tab, string]] : [])];
 
   return (
     <div className="min-h-screen bg-canvas">
@@ -205,6 +240,7 @@ export default function App() {
 
       <main>
         {tab === "tracker" && <TrackerView slices={slices} now={now} lastPaste={lastPaste} onOpenPaste={() => setPasteOpen(true)} />}
+        {tab === "samples" && <ReceptionView toast={toast} />}
         {tab === "report" && <ReportView slices={slices} pasteTimes={snap.pastes.map((p) => p.at)} dicts={dicts} settings={snap.settings} onError={(m) => toast(m, "err")} />}
         {tab === "settings" && <SettingsView snap={snap} dicts={dicts} slices={slices} isAdmin={isAdmin} refresh={refresh} toast={toast} />}
         {tab === "staff" && isAdmin && <StaffView me={me} />}

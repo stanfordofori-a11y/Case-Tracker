@@ -86,7 +86,8 @@ export function formatMinutes(mins: number): string {
   const h = Math.floor((abs % 1440) / 60);
   const m = abs % 60;
   if (d > 0) return `${sign}${d}d ${h}h`;
-  return h > 0 ? `${sign}${h}h ${m}m` : `${sign}${m}m`;
+  if (h > 0) return m ? `${sign}${h}h ${m}m` : `${sign}${h}h`;
+  return `${sign}${m}m`;
 }
 
 export function pairForDept(dept: string): Pair {

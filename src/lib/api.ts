@@ -12,7 +12,7 @@ export const STAFF_FUNCTION = "manage-staff";
 export const configOk = /^https:\/\/[a-z0-9-]+\.supabase\.co\/?$/i.test(SUPABASE_URL);
 export const sb: SupabaseClient | null = configOk ? createClient(SUPABASE_URL.replace(/\/$/, ""), SUPABASE_KEY) : null;
 
-export type Role = "staff" | "admin";
+export type Role = "staff" | "admin" | "courier";
 export interface Me { email: string; display_name: string | null; role: Role; active: boolean }
 export interface PasteRow { id: number; at: string; mode: "full" | "partial"; by_email: string; locked: boolean; undone_at: string | null }
 export interface Settings { graceStd: number; graceAlist: number; archiveDays: number }
@@ -151,3 +151,97 @@ export const signIn = (email: string, password: string) => client().auth.signInW
 export const signOut = () => client().auth.signOut();
 export const changePassword = (password: string) => client().auth.updateUser({ password });
 export const getSession = () => client().auth.getSession();
+
+/* ---------- sample transport (courier -> pre-analytical) ---------- */
+export interface Centre { id: number; name: string; active: boolean }
+export interface CourierRun { id: number; courier_email: string; centre_id: number; started_at: string; handed_over_at: string | null }
+export interface SampleRow {
+  id: number; barcode: string; barcode_raw: string | null; r_number: string | null; run_id: number | null; centre_id: number | null;
+  collected_by: string | null; collected_at: string | null; photo_path: string | null; photo_deleted_at: string | null;
+  received_by: string | null; received_at: string | null; source: "courier" | "reception";
+}
+export interface TransportSettings { photoRetentionDays: number; transitAlertMinutes: number }
+export interface ReceiveResult {
+  result: "received" | "already_received" | "not_logged_by_courier";
+  sample_id: number; barcode: string; r_number: string | null; centre?: string | null; collected_by?: string | null;
+  collected_at?: string | null; received_at: string; received_by?: string; transit_minutes?: number;
+}
+const SAMPLE_COLS = "id,barcode,barcode_raw,r_number,run_id,centre_id,collected_by,collected_at,photo_path,photo_deleted_at,received_by,received_at,source";
+
+export const loadCentres = () =>
+  call(client().from("centres").select("id,name,active").order("name"), "Centres") as Promise<Centre[]>;
+
+export async function loadTransportSettings(): Promise<TransportSettings> {
+  const s = await call(client().from("app_settings").select("photo_retention_days,transit_alert_minutes").eq("id", 1).maybeSingle(), "Settings") as any;
+  return { photoRetentionDays: s?.photo_retention_days ?? 14, transitAlertMinutes: s?.transit_alert_minutes ?? 180 };
+}
+
+/** Everything still in transit, plus anything collected or received in the last `hours`. */
+export async function loadTransport(hours = 36) {
+  const since = new Date(Date.now() - hours * 3600e3).toISOString();
+  const [samples, runs, centres, settings] = await Promise.all([
+    call(client().from("samples").select(SAMPLE_COLS)
+      .or(`received_at.is.null,collected_at.gte.${since},received_at.gte.${since}`).order("id", { ascending: false }).limit(3000), "Samples"),
+    call(client().from("courier_runs").select("*").or(`handed_over_at.is.null,started_at.gte.${since}`).order("id", { ascending: false }).limit(500), "Runs"),
+    loadCentres(),
+    loadTransportSettings(),
+  ]);
+  return { samples: samples as SampleRow[], runs: runs as CourierRun[], centres, settings };
+}
+
+export const samplesForRequisition = (r: string) =>
+  call(client().from("samples").select(SAMPLE_COLS).eq("r_number", r).order("id"), "Samples") as Promise<SampleRow[]>;
+
+export async function myOpenRun(email: string) {
+  const runs = await call(client().from("courier_runs").select("*").eq("courier_email", email).order("id", { ascending: false }).limit(15), "Runs") as CourierRun[];
+  const ids = runs.map((r) => r.id);
+  const samples = ids.length
+    ? await call(client().from("samples").select(SAMPLE_COLS).in("run_id", ids).order("id", { ascending: false }), "Samples") as SampleRow[]
+    : [];
+  return { runs, samples };
+}
+
+export const startRun = (centreId: number) => call(client().rpc("courier_start_run", { p_centre_id: centreId }), "Starting collection") as Promise<number>;
+export const logSamples = (runId: number, barcodes: string[], photoPath: string | null) =>
+  call(client().rpc("courier_log_samples", { p_run_id: runId, p_barcodes: barcodes, p_photo_path: photoPath }), "Logging samples") as
+    Promise<{ barcode: string; r_number: string | null; result: "logged" | "already_in_this_run" | "already_in_transit"; sample_id: number }[]>;
+export const removeSample = (id: number) => call(client().rpc("courier_remove_sample", { p_sample_id: id }), "Removing sample");
+export const handOver = (runId: number) => call(client().rpc("courier_hand_over", { p_run_id: runId }), "Handing over");
+export const receiveSample = (barcode: string) => call(client().rpc("receive_sample", { p_barcode: barcode }), "Receiving") as Promise<ReceiveResult>;
+export const undoReceive = (id: number) => call(client().rpc("undo_receive", { p_sample_id: id }), "Undo receipt");
+export const saveCentre = (id: number | null, name: string, active: boolean) =>
+  call(client().rpc("save_centre", { p_id: id, p_name: name, p_active: active }), "Saving centre");
+export const saveTransportSettings = (s: TransportSettings) =>
+  call(client().rpc("save_transport_settings", { p_photo_retention_days: s.photoRetentionDays, p_transit_alert_minutes: s.transitAlertMinutes }), "Saving settings");
+
+/** Photos go in date folders (UTC) so old ones can be deleted a whole day at a time. */
+export async function uploadSamplePhoto(blob: Blob): Promise<string> {
+  const id = (crypto.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`);
+  const path = `${new Date().toISOString().slice(0, 10)}/${id}.jpg`;
+  const { error } = await client().storage.from("sample-photos").upload(path, blob, { contentType: "image/jpeg", upsert: false });
+  if (error) throw new Error(`Uploading photo: ${error.message}`);
+  return path;
+}
+export async function samplePhotoUrl(path: string): Promise<string> {
+  const { data, error } = await client().storage.from("sample-photos").createSignedUrl(path, 600);
+  if (error) throw new Error(`Opening photo: ${error.message}`);
+  return data.signedUrl;
+}
+
+export function subscribeTransport(onChange: () => void) {
+  const ch = client().channel("transport-live")
+    .on("postgres_changes", { event: "*", schema: "public", table: "samples" }, onChange)
+    .on("postgres_changes", { event: "*", schema: "public", table: "courier_runs" }, onChange)
+    .subscribe();
+  return () => { client().removeChannel(ch); };
+}
+
+/** Delete expired courier photos. Runs at most every 6 hours per computer. */
+export function maybePurgePhotos() {
+  try {
+    const last = Number(localStorage.getItem("pat-photo-purge") || 0);
+    if (Date.now() - last < 6 * 3600e3) return;
+    localStorage.setItem("pat-photo-purge", String(Date.now()));
+  } catch { /* ignore */ }
+  staffFn({ action: "purge_photos" }).catch(() => { /* try again next time */ });
+}
