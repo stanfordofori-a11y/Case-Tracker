@@ -153,6 +153,10 @@ create policy "admin read" on public.paste_changes     for select to authenticat
 create policy "admin read" on public.activity_log      for select to authenticated using ((select public.is_admin()));
 
 revoke all on all tables in schema public from anon;
+-- Read access for signed-in users (rows still limited by the policies above)
+grant usage on schema public to authenticated;
+grant select on all tables in schema public to authenticated;
+
 revoke execute on function public.is_staff() from public, anon;
 revoke execute on function public.is_admin() from public, anon;
 grant execute on function public.is_staff() to authenticated;

@@ -245,3 +245,46 @@ export function maybePurgePhotos() {
   } catch { /* ignore */ }
   staffFn({ action: "purge_photos" }).catch(() => { /* try again next time */ });
 }
+
+/* ---------- report delivery (GHA-POSTF001) ---------- */
+export type DeliveryStatus = "pending" | "D" | "ND" | "CU" | "C";
+export interface DeliverySheet {
+  id: number; courier_email: string; courier_name: string | null; courier_signature: string | null;
+  location: string; department: string | null; started_at: string; closed_at: string | null;
+  reviewed_by: string | null; reviewed_at: string | null; review_note: string | null;
+}
+export interface ReportDelivery {
+  id: number; sheet_id: number; r_number: string; barcode_raw: string | null; client_name: string | null;
+  picked_up_at: string; status: DeliveryStatus; receiver_name: string | null; receiver_signature: string | null;
+  recorded_at: string | null; reason: string | null;
+}
+
+export async function loadDeliveries(days = 45, courierEmail?: string) {
+  const since = new Date(Date.now() - days * 86400e3).toISOString();
+  let q = client().from("delivery_sheets").select("*").or(`closed_at.is.null,started_at.gte.${since}`).order("id", { ascending: false }).limit(500);
+  if (courierEmail) q = q.eq("courier_email", courierEmail);
+  const sheets = await call(q, "Delivery sheets") as DeliverySheet[];
+  const ids = sheets.map((s) => s.id);
+  const rows = ids.length ? await call(client().from("report_deliveries").select("*").in("sheet_id", ids).order("id"), "Deliveries") as ReportDelivery[] : [];
+  return { sheets, rows };
+}
+export const deliveriesForRequisition = (r: string) =>
+  call(client().from("report_deliveries").select("*").eq("r_number", r).order("id"), "Deliveries") as Promise<ReportDelivery[]>;
+export const startDeliverySheet = (location: string, department: string, signature: string) =>
+  call(client().rpc("delivery_start_sheet", { p_location: location, p_department: department, p_courier_signature: signature }), "Starting sheet") as Promise<number>;
+export const addReports = (sheetId: number, codes: string[]) =>
+  call(client().rpc("delivery_add_reports", { p_sheet_id: sheetId, p_codes: codes }), "Adding reports") as
+    Promise<{ code: string; r_number?: string; result: "added" | "already_on_this_sheet" | "already_out_for_delivery" | "no_r_number"; client_name?: string | null }[]>;
+export const setDeliveryClient = (id: number, name: string) => call(client().rpc("delivery_set_client", { p_id: id, p_client_name: name }), "Saving client");
+export const recordDelivery = (id: number, status: Exclude<DeliveryStatus, "pending">, receiverName: string, signature: string, reason: string) =>
+  call(client().rpc("delivery_record", { p_id: id, p_status: status, p_receiver_name: receiverName, p_receiver_signature: signature, p_reason: reason }), "Recording delivery");
+export const removeDelivery = (id: number) => call(client().rpc("delivery_remove", { p_id: id }), "Removing report");
+export const closeDeliverySheet = (id: number) => call(client().rpc("delivery_close_sheet", { p_sheet_id: id }), "Closing sheet");
+export const reviewDeliverySheet = (id: number, note: string) => call(client().rpc("delivery_review", { p_sheet_id: id, p_note: note }), "Reviewing sheet");
+export function subscribeDeliveries(onChange: () => void) {
+  const ch = client().channel("deliveries-live")
+    .on("postgres_changes", { event: "*", schema: "public", table: "delivery_sheets" }, onChange)
+    .on("postgres_changes", { event: "*", schema: "public", table: "report_deliveries" }, onChange)
+    .subscribe();
+  return () => { client().removeChannel(ch); };
+}

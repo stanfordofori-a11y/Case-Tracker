@@ -241,14 +241,13 @@ function CaseDrawer({ c, siblings, now, onClose, onSelect }: {
     window.addEventListener("keydown", k);
     return () => window.removeEventListener("keydown", k);
   }, [c, onClose]);
-  const [journey, setJourney] = useState<{ samples: api.SampleRow[]; centres: api.Centre[] } | null>(null);
+  const [journey, setJourney] = useState<{ samples: api.SampleRow[]; centres: api.Centre[]; deliveries: api.ReportDelivery[] } | null>(null);
   useEffect(() => {
     setJourney(null);
     if (!c) return;
     let live = true;
-    Promise.all([api.samplesForRequisition(c.rNumber), api.loadCentres()])
-      .then(([samples, centres]) => { if (live) setJourney({ samples, centres }); })
-      .catch(() => { if (live) setJourney({ samples: [], centres: [] }); });
+    Promise.all([api.samplesForRequisition(c.rNumber).catch(() => []), api.loadCentres().catch(() => []), api.deliveriesForRequisition(c.rNumber).catch(() => [])])
+      .then(([samples, centres, deliveries]) => { if (live) setJourney({ samples, centres, deliveries }); });
     return () => { live = false; };
   }, [c?.rNumber]); // eslint-disable-line react-hooks/exhaustive-deps
   if (!c) return null;
@@ -321,6 +320,26 @@ function CaseDrawer({ c, siblings, now, onClose, onSelect }: {
                   </li>
                 );
               })}
+            </ul>
+          </div>
+        )}
+
+        {journey && journey.deliveries.length > 0 && (
+          <div className="mb-5">
+            <h3 className="font-semibold text-ink mb-2">Report delivery</h3>
+            <ul className="space-y-2">
+              {journey.deliveries.map((d) => (
+                <li key={d.id} className="rounded-md p-3 text-sm" style={{ background: C.raised, border: `1px solid ${C.line}` }}>
+                  <div className="flex justify-between gap-3 mb-1">
+                    <span className="text-ink">Picked up <span className="num">{fmtIso(d.picked_up_at)}</span></span>
+                    <Badge color={d.status === "D" ? C.success : d.status === "pending" ? C.accent : C.warning}>
+                      {d.status === "D" ? "Delivered" : d.status === "pending" ? "Out for delivery" : d.status === "ND" ? "Not delivered" : d.status === "CU" ? "Client unavailable" : "Closed"}
+                    </Badge>
+                  </div>
+                  {d.status === "D" && <p className="text-ink-2">Received by {d.receiver_name} at <span className="num">{fmtIso(d.recorded_at)}</span></p>}
+                  {d.status !== "D" && d.reason && <p className="text-ink-2">{d.reason} (<span className="num">{fmtIso(d.recorded_at)}</span>)</p>}
+                </li>
+              ))}
             </ul>
           </div>
         )}

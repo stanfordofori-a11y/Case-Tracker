@@ -1,6 +1,6 @@
 -- =====================================================================
 -- Sample transport: courier collection -> pre-analytical reception
--- Run once in Supabase -> SQL Editor, after 01 and 02.
+-- Run in Supabase -> SQL Editor, after 01 and 02. Safe to run again.
 -- =====================================================================
 
 -- ---------- Roles: add 'courier' ----------
@@ -29,23 +29,23 @@ language sql stable security definer set search_path = '' as $$
 $$;
 
 -- ---------- Tables ----------
-create table public.centres (
+create table if not exists public.centres (
   id         bigint generated always as identity primary key,
   name       text not null unique,
   active     boolean not null default true,
   created_at timestamptz not null default now()
 );
 
-create table public.courier_runs (
+create table if not exists public.courier_runs (
   id             bigint generated always as identity primary key,
   courier_email  text not null,
   centre_id      bigint not null references public.centres(id),
   started_at     timestamptz not null default now(),
   handed_over_at timestamptz
 );
-create index courier_runs_started_idx on public.courier_runs(started_at);
+create index if not exists courier_runs_started_idx on public.courier_runs(started_at);
 
-create table public.samples (
+create table if not exists public.samples (
   id               bigint generated always as identity primary key,
   barcode          text not null,        -- normalised: upper case, letters and digits only
   barcode_raw      text,                 -- as read from the label
@@ -62,11 +62,11 @@ create table public.samples (
     -- 'reception' = scanned at the lab without any courier record
 );
 -- A barcode can only be "in transit" once at a time
-create unique index samples_one_open_per_barcode on public.samples(barcode) where received_at is null;
-create index samples_r_number_idx on public.samples(r_number);
-create index samples_collected_idx on public.samples(collected_at);
-create index samples_received_idx on public.samples(received_at);
-create index samples_run_idx on public.samples(run_id);
+create unique index if not exists samples_one_open_per_barcode on public.samples(barcode) where received_at is null;
+create index if not exists samples_r_number_idx on public.samples(r_number);
+create index if not exists samples_collected_idx on public.samples(collected_at);
+create index if not exists samples_received_idx on public.samples(received_at);
+create index if not exists samples_run_idx on public.samples(run_id);
 
 alter table public.app_settings add column if not exists photo_retention_days int not null default 14 check (photo_retention_days between 1 and 365);
 alter table public.app_settings add column if not exists transit_alert_minutes int not null default 180 check (transit_alert_minutes >= 15);
@@ -231,24 +231,34 @@ alter table public.centres      enable row level security;
 alter table public.courier_runs enable row level security;
 alter table public.samples      enable row level security;
 
+drop policy if exists "members read centres" on public.centres;
 create policy "members read centres" on public.centres for select to authenticated using ((select public.is_member()));
+drop policy if exists "staff read runs, couriers read own" on public.courier_runs;
 create policy "staff read runs, couriers read own" on public.courier_runs for select to authenticated
   using ((select public.is_staff()) or courier_email = lower(coalesce(auth.jwt()->>'email','')));
+drop policy if exists "staff read samples, couriers read own" on public.samples;
 create policy "staff read samples, couriers read own" on public.samples for select to authenticated
   using ((select public.is_staff()) or collected_by = lower(coalesce(auth.jwt()->>'email','')));
 -- Couriers also need to read settings (photo retention shown on their screen)
 drop policy if exists "staff read" on public.app_settings;
+drop policy if exists "members read settings" on public.app_settings;
 create policy "members read settings" on public.app_settings for select to authenticated using ((select public.is_member()));
 
 revoke all on public.centres, public.courier_runs, public.samples from anon;
+-- Read access for signed-in users (rows still limited by the policies above)
+grant usage on schema public to authenticated;
+grant select on public.centres, public.courier_runs, public.samples to authenticated;
+
 
 -- ---------- Photo storage (private bucket) ----------
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
 values ('sample-photos', 'sample-photos', false, 5242880, array['image/jpeg','image/png','image/webp'])
 on conflict (id) do nothing;
 
+drop policy if exists "members upload sample photos" on storage.objects;
 create policy "members upload sample photos" on storage.objects for insert to authenticated
   with check (bucket_id = 'sample-photos' and (select public.is_member()));
+drop policy if exists "lab staff view sample photos" on storage.objects;
 create policy "lab staff view sample photos" on storage.objects for select to authenticated
   using (bucket_id = 'sample-photos' and (select public.is_staff()));
 
@@ -270,6 +280,7 @@ begin
 end $$;
 
 -- Live updates for the reception screen
-alter publication supabase_realtime add table public.samples, public.courier_runs;
+do $$ begin alter publication supabase_realtime add table public.samples; exception when duplicate_object then null; end $$;
+do $$ begin alter publication supabase_realtime add table public.courier_runs; exception when duplicate_object then null; end $$;
 
 select 'sample transport installed' as result;

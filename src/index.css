@@ -161,3 +161,11 @@ select option { background: var(--surface); color: var(--ink); }
   .print-only { display: block; }
   .card { box-shadow: none !important; border-color: #999 !important; break-inside: avoid; }
 }
+
+/* Delivery form printing: only the form, nothing else */
+.print-portal { display: none; }
+@media print {
+  body.printing-form #root { display: none !important; }
+  body.printing-form .print-portal { display: block !important; }
+  body.printing-form .pod-form * { color: #000 !important; }
+}

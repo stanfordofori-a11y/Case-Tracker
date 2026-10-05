@@ -13,17 +13,18 @@ A shared web tool that follows laboratory samples from outside collection centre
 1. [What it does](#what-it-does)
 2. [Using the tracker](#using-the-tracker)
 3. [Sample collection and reception](#sample-collection-and-reception)
-4. [How the tracker decides things](#how-the-tracker-decides-things)
-5. [Roles and permissions](#roles-and-permissions)
-6. [Setting it up from scratch](#setting-it-up-from-scratch)
-7. [Configuration](#configuration)
-8. [Project structure](#project-structure)
-9. [Database overview](#database-overview)
-10. [Security and data protection](#security-and-data-protection)
-11. [Backups, archiving and housekeeping](#backups-archiving-and-housekeeping)
-12. [Troubleshooting](#troubleshooting)
-13. [Known limitations](#known-limitations)
-14. [Local development](#local-development)
+4. [Report delivery (GHA-POSTF001)](#report-delivery-gha-postf001)
+5. [How the tracker decides things](#how-the-tracker-decides-things)
+6. [Roles and permissions](#roles-and-permissions)
+7. [Setting it up from scratch](#setting-it-up-from-scratch)
+8. [Configuration](#configuration)
+9. [Project structure](#project-structure)
+10. [Database overview](#database-overview)
+11. [Security and data protection](#security-and-data-protection)
+12. [Backups, archiving and housekeeping](#backups-archiving-and-housekeeping)
+13. [Troubleshooting](#troubleshooting)
+14. [Known limitations](#known-limitations)
+15. [Local development](#local-development)
 
 ---
 
@@ -39,6 +40,7 @@ A shared web tool that follows laboratory samples from outside collection centre
 - **Delay reports** for any time window: by department, A-List vs standard, and by individual test, with print and CSV export.
 - **Courier collection by phone.** Couriers photograph the tubes at the collection centre; every barcode in the photo is read and the samples go live as *In transit*. The photo is kept as proof of pickup and deleted automatically after a set number of days.
 - **Reception at pre-analytical** with a handheld barcode scanner: each scan marks the sample received, shows its centre and transit time, and flags duplicates and samples no courier logged.
+- **Report delivery (GHA-POSTF001) by phone:** couriers scan reports at pick-up, the receiver signs on the phone, every non-delivery needs a reason, and post-analytical reviews and prints the form.
 - **Sample journey in each case:** the tracker shows when and where a requisition's tubes were collected and when the lab received them.
 - **Staff accounts** managed inside the app by admins.
 - **Display options** per computer: five text sizes, light / dark / high-contrast themes, three typefaces, and compact or comfortable rows.
@@ -106,6 +108,16 @@ Click **Display** (top right):
 
 Settings are saved in that browser only, so each bench PC can have its own.
 
+### Installing it as an app
+
+The tracker can be installed so it opens in its own window with its own icon, like a normal app. The site must be the **https** Render address.
+
+- **Chrome or Edge on a PC:** open the site, then click the install icon at the right of the address bar (a small monitor with a down arrow), or open the ⋮ menu and choose **Cast, save and share → Install page as app** (older versions: **Install Post-Analytical Tracker**).
+- **Android (Chrome):** ⋮ menu → **Add to home screen → Install**.
+- **iPhone (Safari):** Share button → **Add to Home Screen**.
+
+Installed copies update themselves: each time the app opens with a connection, it loads the latest version from Render. It needs a connection to work, since all data lives in Supabase.
+
 ### Keeping the dictionaries accurate
 
 **Settings** tab (changes apply to everyone):
@@ -160,6 +172,37 @@ Create courier accounts in **Staff** with the role **Courier**.
 
 ---
 
+## Report delivery (GHA-POSTF001)
+
+The paper *Proof of delivery of clients' medical reports* form (GHA-POSTF001) is filled in on the courier's phone and printed from the app in the same layout.
+
+### Courier (on a phone)
+
+1. Sign in and tap **Deliver reports** at the top.
+2. Enter the **delivery location** and **department**, **sign** in the box (courier signature) and tap **Start delivery sheet**. This is the pick-up.
+3. Add each report: **Scan report barcodes (photo)**, or type the R#. The client name is filled in from the tracker when the R# is known; otherwise tap **Add client name**.
+4. At the client, tap **Record delivery** on the report and choose:
+   - **Delivered (D):** the receiver types their full name and signs on the phone.
+   - **Not delivered (ND)**, **Client unavailable (CU)** or **Closed (C):** a reason is required.
+   The date and time are recorded automatically.
+5. When every report has a status, tap **Close sheet and send to the lab**.
+
+A report can only be out for delivery on one sheet at a time. **Remove** takes off a report added by mistake (before its outcome is recorded).
+
+### Post-analytical (Deliveries tab)
+
+- Counts of reports out for delivery, delivered and not delivered today, and sheets awaiting review.
+- Each sheet shows its reports, statuses, receivers and signatures. Filter by status or search by R#, client, receiver or courier.
+- **Review and sign off** completes *Reviewed by / Date* on a closed sheet (with an optional note).
+- **Print GHA-POSTF001** prints the sheet on landscape A4 in the paper form's layout, with signatures, the status legend and the document-control footer. Undelivered rows show the attempt time in the reason column.
+- **Export (CSV)** for audits.
+
+In the **Tracker**, opening a case shows a **Report delivery** section: picked up, delivered to whom and when, or why not.
+
+The form's document-control details (form number, version, issue date, author, approver) are in `src/lib/formTemplate.ts`; update them there when QA issues a new version of the form.
+
+---
+
 ## How the tracker decides things
 
 ### Department of a test
@@ -201,6 +244,8 @@ More frequent pastes mean fewer *Unclear* cases and tighter delay ranges. The re
 | Receive samples at pre-analytical, undo a receipt | | ✓ | ✓ |
 | View pickup photos | | ✓ | ✓ |
 | Manage centres, photo retention and transit alert time | | | ✓ |
+| Fill in report delivery sheets (pick-up, receiver signature, status) | ✓ | | |
+| View, review and print delivery sheets (GHA-POSTF001) | | ✓ | ✓ |
 
 Couriers see only the collection screen and only their own collections; they cannot see the tracker, reports or other couriers' work. Every user can change their own password from the menu under their name. Deactivating someone blocks their sign-in immediately; their past work stays in the records.
 
@@ -215,7 +260,7 @@ You need free accounts on **Supabase**, **GitHub** and **Render**.
 1. Create a project (the London region is closest to West Africa). Save the database password somewhere safe.
 2. **SQL Editor → New query**: paste and run `supabase/01_database_setup.sql`. The final result should list 11 tables, all with `rls_enabled = true`.
 3. **SQL Editor → New query**: paste and run `supabase/02_first_admin_setup.sql`.
-4. **SQL Editor → New query**: paste and run `supabase/03_sample_transport.sql` (couriers, centres, samples, and the private `sample-photos` storage bucket). It should end with *sample transport installed*.
+4. **SQL Editor → New query**: run, one at a time, `supabase/03_sample_transport.sql` (couriers, centres, samples and the private `sample-photos` bucket; ends with *sample transport installed*), `supabase/04_fix_table_permissions.sql` (ends with *table permissions fixed*) and `supabase/05_report_delivery.sql` (report delivery sheets; ends with *report delivery installed*). All three are safe to run again.
 5. **Authentication → Sign In / Providers**: switch **off** "Allow new users to sign up". Leave the Email provider enabled.
 
 ### 2. The `manage-staff` Edge Function
@@ -241,9 +286,9 @@ This small server-side function creates and manages logins. It is the only place
 
 Open the Render address. Because nobody exists yet, the app shows **Create the first admin**: enter your name, email, a password and the `SETUP_CODE`. This form works exactly once; afterwards everyone sees the normal sign-in screen. Add colleagues from the **Staff** tab (lab staff, couriers, admins), and add your collection centres under **Settings**. You may then delete the `SETUP_CODE` secret.
 
-### 5. Upgrading an existing installation to add sample collection
+### 5. Upgrading an existing installation
 
-1. Run `supabase/03_sample_transport.sql` in the SQL Editor.
+1. Run any of `supabase/03_sample_transport.sql`, `04_fix_table_permissions.sql` and `05_report_delivery.sql` not yet run, in that order, in the SQL Editor.
 2. Redeploy the `manage-staff` Edge Function with the current `supabase/functions/manage-staff/index.ts` (it adds the Courier role and photo clean-up). Keep **Verify JWT** off.
 3. Push the updated code to GitHub so Render redeploys.
 
@@ -270,6 +315,7 @@ Never put the **secret** key (`sb_secret_…` or `service_role`) in Render, the 
 
 ```
 index.html                  Page shell
+public/                     App icons, manifest.json and sw.js (make the tracker installable)
 vite.config.ts              Build configuration
 render.yaml                 Render blueprint (optional)
 package.json / package-lock.json
@@ -283,6 +329,7 @@ src/
     api.ts                  Supabase reads, writes and the staff function
     defaults.ts             Built-in A-List and department dictionaries
     display.ts              Per-computer display settings
+    formTemplate.ts         Document-control details printed on GHA-POSTF001
     barcode.ts              Reads barcodes from photos on the phone; shrinks photos for upload
   components/
     AuthScreen.tsx          First-admin setup and sign-in
@@ -293,6 +340,10 @@ src/
     CentresPanel.tsx        Collection centres, photo retention, transit alert
     CourierView.tsx         Courier phone screen: collections, photos, handover
     ReceptionView.tsx       Pre-analytical scanning, in transit, received today
+    DeliveryCourier.tsx     Courier screen for delivering reports
+    DeliveriesView.tsx      Lab view of delivery sheets: review, print, export
+    PodForm.tsx             Printable GHA-POSTF001 layout
+    Signature.tsx           Signature pad and signature display
     StaffView.tsx           Staff accounts (admins)
     DisplayMenu.tsx         Text size, theme, typeface, row spacing
     ui.tsx                  Shared buttons, panels, badges, tube-cap icons
@@ -300,6 +351,8 @@ supabase/
   01_database_setup.sql     Tables, security rules, paste/undo/admin functions, default dictionaries
   02_first_admin_setup.sql  One-time first-admin claim
   03_sample_transport.sql   Couriers, centres, samples, reception functions, photo bucket
+  04_fix_table_permissions.sql  Read permissions for signed-in users (safe to run any time)
+  05_report_delivery.sql    Delivery sheets and report deliveries (GHA-POSTF001)
   functions/manage-staff/index.ts   Edge Function for staff accounts
   optional_add_staff_by_sql.sql     Manual alternative to the Staff tab
 ```
@@ -320,6 +373,8 @@ supabase/
 | `centres` | Collection centres |
 | `courier_runs` | One collection: courier, centre, start and handover time |
 | `samples` | One row per tube: barcode, R#, collection (who, where, when, photo) and reception (who, when) |
+| `delivery_sheets` | One GHA-POSTF001 sheet: courier and signature, location, department, pick-up, closed, reviewed by |
+| `report_deliveries` | One report on a sheet: R#, client, status (D/ND/CU/C), receiver name and signature, time, reason |
 | `activity_log` | Undo, dictionary replacements, staff changes, imports, archives, clear-all |
 
 Department splits are worked out when the page loads, from the current dictionary, so editing the dictionary never rewrites stored data. All writes go through database functions (`apply_paste`, `undo_last_paste`, `replace_keywords`, and so on) that check the caller's role; a lock stops two simultaneous pastes from interfering.
@@ -359,12 +414,15 @@ Department splits are worked out when the page loads, from the current dictionar
 | "Database setup incomplete: run 3_first_admin_setup.sql" | Run `supabase/02_first_admin_setup.sql` in the SQL Editor (the same file, renamed for this repository). |
 | "This login is not on the staff list" | The account exists but isn't on the staff list, or was deactivated. An admin can add or reactivate it on the Staff tab. |
 | Header shows **Reconnecting** instead of **Live** | Live updates dropped (network). Data still refreshes every five minutes and when the tab is reopened. |
+| "Couldn't load the latest data (…: permission denied for table …)" | The table is missing its read permission for signed-in users. Run `supabase/04_fix_table_permissions.sql` in the SQL Editor, then reload. |
 | "Couldn't load the latest data" banner | Network or Supabase outage, or the project is paused. It retries automatically; check Supabase's dashboard and status page. |
 | A case is missing after a paste | Look at the review's **Couldn't be read** list; usually the collection date line was missing or in an unusual format. |
 | Cases wrongly marked completed | Probably a partial paste applied as a full list. Use **Undo that paste**, then re-paste with **Add / update only**. |
+| Chrome says "This app cannot be installed" | Use the https Render address (not a downloaded file), make sure `public/` (icons, `manifest.json`, `sw.js`) was uploaded to GitHub and the site redeployed, then reload the page once before installing. |
 | Courier's phone doesn't open the camera | The site must be opened over **https** (Render addresses are). Allow camera access for the browser in the phone's settings. |
 | "No barcode could be read" | Retake closer, flatter and in better light, with fewer tubes per photo; or type the number. |
 | Scans at reception do nothing | Click once on the Samples page so the browser window has focus; the scan box then takes focus automatically. Check the scanner is set to send Enter after each code. |
+| "Couldn't load deliveries" | Run `supabase/05_report_delivery.sql`. |
 | "Couldn't load samples" / "Couldn't load centres" | Run `supabase/03_sample_transport.sql`. |
 | Photos are not being deleted | Redeploy the current `manage-staff` function; use **Settings → Delete expired photos now** to test. |
 | A test is in the wrong department | Add or fix its keyword in **Settings → Department keywords** (or accept it from **Unrecognised test names**). |

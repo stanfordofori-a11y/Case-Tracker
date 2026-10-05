@@ -9,11 +9,13 @@ import SettingsView from "./components/SettingsView";
 import StaffView from "./components/StaffView";
 import CourierView from "./components/CourierView";
 import ReceptionView from "./components/ReceptionView";
+import DeliveriesView from "./components/DeliveriesView";
+import DeliveryCourier from "./components/DeliveryCourier";
 import { Button, C, Logo } from "./components/ui";
 import DisplayMenu from "./components/DisplayMenu";
 import { useDisplay } from "./lib/display";
 
-type Tab = "tracker" | "samples" | "report" | "settings" | "staff";
+type Tab = "tracker" | "samples" | "deliveries" | "report" | "settings" | "staff";
 type Phase = "boot" | "auth" | "app";
 
 function LiveClock() {
@@ -36,6 +38,7 @@ export default function App() {
   const [toasts, setToasts] = useState<{ id: number; text: string; tone: "ok" | "err" }[]>([]);
   const [menuOpen, setMenuOpen] = useState(false);
   const [display, setDisplay] = useDisplay();
+  const [courierMode, setCourierMode] = useState<"collect" | "deliver">("collect");
 
   const toast = useCallback((text: string, tone: "ok" | "err" = "ok") => {
     const id = Date.now() + Math.random();
@@ -144,7 +147,7 @@ export default function App() {
       <div className="min-h-screen bg-canvas">
         <header className="border-b bg-surface sticky top-0 z-40" style={{ borderColor: C.line }}>
           <div className="max-w-lg mx-auto px-4 py-2.5 flex items-center justify-between gap-3">
-            <span className="flex items-center gap-2.5"><Logo size={30} /><span className="font-semibold text-ink">Sample collection</span></span>
+            <span className="flex items-center gap-2.5"><Logo size={30} /><span className="font-semibold text-ink">Courier</span></span>
             <span className="flex items-center gap-2">
               <DisplayMenu d={display} set={setDisplay} />
               <div className="relative">
@@ -163,7 +166,18 @@ export default function App() {
             </span>
           </div>
         </header>
-        <CourierView me={me} toast={toast} />
+        <div className="max-w-lg mx-auto px-4 pt-4">
+          <div role="tablist" aria-label="Task" className="grid grid-cols-2 rounded-lg border overflow-hidden" style={{ borderColor: C.line }}>
+            {([["collect", "Collect samples"], ["deliver", "Deliver reports"]] as const).map(([k, label]) => (
+              <button key={k} role="tab" aria-selected={courierMode === k} onClick={() => setCourierMode(k)}
+                className="py-2.5 text-base cursor-pointer"
+                style={{ background: courierMode === k ? C.ink : C.surface, color: courierMode === k ? C.surface : C.ink, fontWeight: courierMode === k ? 600 : 400 }}>
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
+        {courierMode === "collect" ? <CourierView me={me} toast={toast} /> : <DeliveryCourier me={me} toast={toast} />}
         <div className="fixed bottom-4 left-4 right-4 z-[70] space-y-2 max-w-lg mx-auto no-print" aria-live="polite">
           {toasts.map((t) => (
             <div key={t.id} className="card px-4 py-3 text-sm text-ink" style={{ borderLeft: `4px solid ${t.tone === "err" ? C.danger : C.success}` }}>{t.text}</div>
@@ -181,7 +195,7 @@ export default function App() {
   const isAdmin = me.role === "admin";
   const lastPaste = snap.pastes[0] || null;
   const initials = (me.display_name || me.email).split(/[\s@.]+/).filter(Boolean).slice(0, 2).map((w) => w[0]!.toUpperCase()).join("");
-  const tabs: [Tab, string][] = [["tracker", "Tracker"], ["samples", "Samples"], ["report", "Delay report"], ["settings", "Settings"], ...(isAdmin ? [["staff", "Staff"] as [Tab, string]] : [])];
+  const tabs: [Tab, string][] = [["tracker", "Tracker"], ["samples", "Samples"], ["deliveries", "Deliveries"], ["report", "Delay report"], ["settings", "Settings"], ...(isAdmin ? [["staff", "Staff"] as [Tab, string]] : [])];
 
   return (
     <div className="min-h-screen bg-canvas">
@@ -241,6 +255,7 @@ export default function App() {
       <main>
         {tab === "tracker" && <TrackerView slices={slices} now={now} lastPaste={lastPaste} onOpenPaste={() => setPasteOpen(true)} />}
         {tab === "samples" && <ReceptionView toast={toast} />}
+        {tab === "deliveries" && <DeliveriesView toast={toast} />}
         {tab === "report" && <ReportView slices={slices} pasteTimes={snap.pastes.map((p) => p.at)} dicts={dicts} settings={snap.settings} onError={(m) => toast(m, "err")} />}
         {tab === "settings" && <SettingsView snap={snap} dicts={dicts} slices={slices} isAdmin={isAdmin} refresh={refresh} toast={toast} />}
         {tab === "staff" && isAdmin && <StaffView me={me} />}
