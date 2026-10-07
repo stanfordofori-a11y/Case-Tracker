@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import * as api from "../lib/api";
 import { fmtIso, fmtTime, formatMinutes, norm } from "../lib/tracker";
 import { Badge, Button, C, Modal, Note, Stat, csvCell, downloadFile, inputBase, stamp, tint } from "./ui";
+import PhotoReview from "./PhotoReview";
 
 type Feedback = { tone: "ok" | "warn" | "err"; title: string; detail: string; sampleId?: number } | null;
 
@@ -32,6 +33,7 @@ export default function ReceptionView({ toast }: { toast: (m: string, t?: "ok" |
   const [search, setSearch] = useState("");
   const [photo, setPhoto] = useState<{ url: string; label: string } | null>(null);
   const [now, setNow] = useState(Date.now());
+  const [mode, setMode] = useState<"receive" | "photos">("receive");
   const inputRef = useRef<HTMLInputElement>(null);
 
   const load = useCallback(async () => {
@@ -52,6 +54,7 @@ export default function ReceptionView({ toast }: { toast: (m: string, t?: "ok" |
   useEffect(() => {
     // Take focus back unless someone is typing in another field or a dialog is open.
     const refocus = () => {
+      if (mode !== "receive") return;
       const a = document.activeElement as HTMLElement | null;
       const typing = a && (a.tagName === "INPUT" || a.tagName === "SELECT" || a.tagName === "TEXTAREA") && a !== inputRef.current;
       if (!typing && !document.querySelector('[role="dialog"]')) inputRef.current?.focus();
@@ -60,7 +63,7 @@ export default function ReceptionView({ toast }: { toast: (m: string, t?: "ok" |
     window.addEventListener("focus", refocus);
     refocus();
     return () => { clearInterval(i); window.removeEventListener("focus", refocus); };
-  }, []);
+  }, [mode]);
 
   const centreName = (id: number | null) => data?.centres.find((c) => c.id === id)?.name || "—";
   const alertMin = data?.settings.transitAlertMinutes ?? 180;
@@ -140,6 +143,18 @@ export default function ReceptionView({ toast }: { toast: (m: string, t?: "ok" |
   return (
     <div className="max-w-[1400px] mx-auto px-4 sm:px-6 py-5">
       {loadErr && <Note tone="err">Couldn't load samples: {loadErr}. Check that 03_sample_transport.sql has been run in Supabase.</Note>}
+
+      <div role="tablist" aria-label="Samples view" className="inline-flex rounded-lg border overflow-hidden mb-4" style={{ borderColor: C.line }}>
+        {([["receive", "Receive samples"], ["photos", "Pickup photos"]] as const).map(([k, label]) => (
+          <button key={k} role="tab" aria-selected={mode === k} onClick={() => setMode(k)} className="px-4 py-2 text-sm cursor-pointer"
+            style={{ background: mode === k ? C.ink : C.surface, color: mode === k ? C.surface : C.ink, fontWeight: mode === k ? 600 : 400 }}>
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {mode === "photos" && <PhotoReview retentionDays={data?.settings.photoRetentionDays ?? 14} />}
+      {mode === "receive" && <>
 
       {/* Scan box */}
       <section className="card p-5 mb-5">
@@ -242,6 +257,7 @@ export default function ReceptionView({ toast }: { toast: (m: string, t?: "ok" |
                           </span>
                         </span>
                         <span className="text-right shrink-0">
+                          {s.photo_path && !s.photo_deleted_at && <Button tone="quiet" className="px-0 py-0 text-xs mr-2" onClick={() => showPhoto(s)}>Photo</Button>}
                           <span className="num text-sm text-ink">{fmtTime(s.received_at)}</span>
                           {tr !== null && <span className="block text-xs text-ink-3">transit {formatMinutes(tr)}</span>}
                         </span>
@@ -254,6 +270,8 @@ export default function ReceptionView({ toast }: { toast: (m: string, t?: "ok" |
           </div>
         </>
       )}
+
+      </>}
 
       <Modal open={!!photo} onClose={() => setPhoto(null)} wide title="Pickup photo">
         {photo && (<><img src={photo.url} alt={`Pickup photo for ${photo.label}`} className="w-full rounded-md" /><p className="text-sm text-ink-3 mt-2">{photo.label}</p></>)}

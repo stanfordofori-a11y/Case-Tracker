@@ -316,6 +316,12 @@ function CaseDrawer({ c, siblings, now, onClose, onSelect }: {
                     {s.source === "courier"
                       ? <p className="text-ink-2">Collected from {centre || "a centre"} by {(s.collected_by || "").split("@")[0]} at <span className="num">{fmtIso(s.collected_at)}</span></p>
                       : <p className="text-ink-2">No courier record (scanned straight in at the lab)</p>}
+                    {s.photo_path && !s.photo_deleted_at && (
+                      <button className="text-accent underline text-sm cursor-pointer" onClick={async () => {
+                        const w = window.open("", "_blank"); // open first so the browser doesn't block it
+                        try { const url = await api.samplePhotoUrl(s.photo_path!); if (w) w.location.href = url; } catch { w?.close(); }
+                      }}>View pickup photo</button>
+                    )}
                     {s.received_at && <p className="text-ink-2">Received at pre-analytical <span className="num">{fmtIso(s.received_at)}</span>{transit !== null && ` after ${formatMinutes(transit)} in transit`}</p>}
                   </li>
                 );

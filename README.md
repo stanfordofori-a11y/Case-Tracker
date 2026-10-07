@@ -160,6 +160,16 @@ Open the **Samples** tab. The large scan box is always ready: scan each tube (th
 
 In the **Tracker**, opening a case shows a **Sample journey** section for its tubes.
 
+### Checking pickup photos
+
+**Samples → Pickup photos** shows every photo couriers took that is still kept, grouped by day and by collection (centre and courier). Each photo shows its time, how many tubes were logged from it, and whether they have all been received.
+
+- Filter by period, courier or centre, or find a barcode or R#.
+- Click a photo to open it full screen. Zoom (+ / −, or click the photo), **Rotate**, **Open full size**, and move through photos with **Previous / Next** or the arrow keys.
+- Beside the photo is the list of tubes logged from it, with their status. **Check that every tube in the photo appears in the list and that the numbers match the labels**: a tube that is in the photo but not in the list was not logged.
+
+Photos are also linked from **Photo** buttons in the in-transit and received lists, and from **View pickup photo** in a tracker case's sample journey. Links to photos expire after 30 minutes for security; **Refresh** renews them.
+
 ### Admin settings for collection
 
 **Settings → Sample collection: centres and photos**
@@ -242,7 +252,7 @@ More frequent pastes mean fewer *Unclear* cases and tighter delay ranges. The re
 | Clear all tracked cases | | | ✓ |
 | Collect samples by phone (start collection, photograph, hand over) | ✓ | ✓ | ✓ |
 | Receive samples at pre-analytical, undo a receipt | | ✓ | ✓ |
-| View pickup photos | | ✓ | ✓ |
+| View and check pickup photos (Samples → Pickup photos) | | ✓ | ✓ |
 | Manage centres, photo retention and transit alert time | | | ✓ |
 | Fill in report delivery sheets (pick-up, receiver signature, status) | ✓ | | |
 | View, review and print delivery sheets (GHA-POSTF001) | | ✓ | ✓ |
@@ -340,6 +350,7 @@ src/
     CentresPanel.tsx        Collection centres, photo retention, transit alert
     CourierView.tsx         Courier phone screen: collections, photos, handover
     ReceptionView.tsx       Pre-analytical scanning, in transit, received today
+    PhotoReview.tsx         Pickup photo gallery and viewer
     DeliveryCourier.tsx     Courier screen for delivering reports
     DeliveriesView.tsx      Lab view of delivery sheets: review, print, export
     PodForm.tsx             Printable GHA-POSTF001 layout

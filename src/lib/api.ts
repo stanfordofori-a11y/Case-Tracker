@@ -288,3 +288,33 @@ export function subscribeDeliveries(onChange: () => void) {
     .subscribe();
   return () => { client().removeChannel(ch); };
 }
+
+/* ---------- pickup photo review ---------- */
+export interface PickupPhoto { path: string; url: string | null; takenAt: string; courier: string | null; centreId: number | null; runId: number | null; samples: SampleRow[] }
+
+/** Courier photos still within the retention period, newest first, with short-lived links. */
+export async function loadPickupPhotos(days: number) {
+  const since = new Date(Date.now() - days * 86400e3).toISOString();
+  const [samples, runs, centres] = await Promise.all([
+    call(client().from("samples").select(SAMPLE_COLS).not("photo_path", "is", null).is("photo_deleted_at", null)
+      .gte("collected_at", since).order("collected_at", { ascending: false }).limit(3000), "Photos") as Promise<SampleRow[]>,
+    call(client().from("courier_runs").select("*").gte("started_at", new Date(Date.now() - (days + 1) * 86400e3).toISOString()).order("id", { ascending: false }).limit(1000), "Runs") as Promise<CourierRun[]>,
+    loadCentres(),
+  ]);
+  const byPath = new Map<string, PickupPhoto>();
+  for (const s of samples) {
+    const p = s.photo_path!;
+    const e = byPath.get(p);
+    if (e) { e.samples.push(s); continue; }
+    byPath.set(p, { path: p, url: null, takenAt: s.collected_at || "", courier: s.collected_by, centreId: s.centre_id, runId: s.run_id, samples: [s] });
+  }
+  const photos = [...byPath.values()];
+  // Signed links in batches (valid 30 minutes; reload for fresh ones)
+  for (let i = 0; i < photos.length; i += 100) {
+    const batch = photos.slice(i, i + 100);
+    const { data, error } = await client().storage.from("sample-photos").createSignedUrls(batch.map((p) => p.path), 1800);
+    if (error) throw new Error(`Opening photos: ${error.message}`);
+    (data || []).forEach((d, j) => { if (batch[j]) batch[j]!.url = d.signedUrl || null; });
+  }
+  return { photos, runs, centres };
+}
